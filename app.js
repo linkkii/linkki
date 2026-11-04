@@ -1,5 +1,15 @@
 const STORAGE_KEY = "linkki-prototype-v1";
-const TEST_VERIFICATION_CODE = "123456";
+// Configure URL e chave publica em supabase-config.js (nunca use service_role).
+const authClient = (window.supabase && window.LINKKI_SUPABASE_URL && window.LINKKI_SUPABASE_ANON_KEY && !window.LINKKI_SUPABASE_URL.includes('COLE_'))
+  ? window.supabase.createClient(window.LINKKI_SUPABASE_URL, window.LINKKI_SUPABASE_ANON_KEY)
+  : null;
+function requireAuthClient(form) {
+  if (authClient) return true;
+  const error = form?.querySelector('.form-error');
+  if (error) error.textContent = 'Falta configurar a URL e a chave pública do Supabase em supabase-config.js.';
+  return false;
+}
+function authError(error) { return error?.message || 'Não foi possível concluir. Tente novamente.'; }
 const fontPresets = {
   system: { name: "Moderna", css: "Inter, ui-sans-serif, system-ui, sans-serif" },
   serif: { name: "Editorial", css: "Georgia, 'Times New Roman', serif" },
@@ -516,7 +526,7 @@ function signupPage() {
           <span class="field-label">Código de verificação</span>
           <input class="input verification-input" name="code" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="000000" required />
         </label>
-        <div class="prototype-note"><strong>Enquanto o envio real não está conectado:</strong> use o código <code>${TEST_VERIFICATION_CODE}</code>.</div>
+
         <p class="form-error" role="alert"></p>
         <button class="button button--primary auth-submit" type="submit">Verificar e criar página</button>
         <button class="text-button" type="button" data-action="resend-code">Reenviar código</button>
@@ -529,7 +539,7 @@ function signupPage() {
 }
 
 function loginPage() {
-  const hasAccount = state.account.verified;
+  const hasAccount = true;
   const content = `
     <div class="auth-heading">
       <h2>Entre na sua Linkki</h2>
@@ -546,7 +556,7 @@ function loginPage() {
             <span class="field-label">Código de acesso</span>
             <input class="input verification-input" name="loginCode" inputmode="numeric" maxlength="6" placeholder="000000" required />
           </label>
-          <div class="prototype-note">No protótipo, use <code>${TEST_VERIFICATION_CODE}</code>.</div>
+
         ` : ""}
         <p class="form-error" role="alert"></p>
         <button class="button button--primary auth-submit" type="submit">${state.loginCodeSent ? "Entrar" : "Enviar código"}</button>
@@ -1353,16 +1363,24 @@ function bindEvents() {
   });
 
   const categoryForm = document.querySelector('[data-form="signup-category"]');
-  categoryForm?.addEventListener("submit", (event) => {
+  categoryForm?.addEventListener("submit", async (event) => {
     event.preventDefault();
-    if (!state.account.category) {
-      setFormError(categoryForm, "Selecione a opção que melhor descreve você.");
-      return;
-    }
-    state.signupStep = 3;
-    saveState();
-    render();
-    showToast("Código de verificação enviado.");
+    if (!state.account.category) { setFormError(categoryForm, "Selecione a opção que melhor descreve você."); return; }
+    if (!requireAuthClient(categoryForm)) return;
+    const button = categoryForm.querySelector('[type="submit"]');
+    button.disabled = true;
+    try {
+      const { error } = await authClient.auth.signInWithOtp({
+        email: state.account.email,
+        options: { shouldCreateUser: true, data: {
+          first_name: state.account.firstName, last_name: state.account.lastName,
+          username: state.account.username, category: state.account.category
+        } }
+      });
+      if (error) throw error;
+      state.signupStep = 3; saveState(); render(); showToast("Código enviado para seu e-mail.");
+    } catch (error) { setFormError(categoryForm, authError(error)); }
+    finally { button.disabled = false; }
   });
 
   document.querySelectorAll('[data-action="signup-back"]').forEach((button) => {
@@ -1373,57 +1391,68 @@ function bindEvents() {
     });
   });
 
-  document.querySelector('[data-action="resend-code"]')?.addEventListener("click", () => {
-    showToast("Novo código enviado.");
+  document.querySelector('[data-action="resend-code"]')?.addEventListener("click", async (event) => {
+    if (!requireAuthClient(verifyForm)) return;
+    const button = event.currentTarget; button.disabled = true;
+    try {
+      const { error } = await authClient.auth.signInWithOtp({ email: state.account.email, options: { shouldCreateUser: true } });
+      if (error) throw error;
+      showToast("Novo código enviado.");
+    } catch (error) { setFormError(verifyForm, authError(error)); }
+    finally { button.disabled = false; }
   });
 
   const verifyForm = document.querySelector('[data-form="signup-verify"]');
-  verifyForm?.addEventListener("submit", (event) => {
+  verifyForm?.addEventListener("submit", async (event) => {
     event.preventDefault();
+    if (!requireAuthClient(verifyForm)) return;
     const code = String(new FormData(verifyForm).get("code") || "").replace(/\D/g, "");
-    if (code !== TEST_VERIFICATION_CODE) {
-      setFormError(verifyForm, "Código incorreto. Confira e tente novamente.");
-      return;
-    }
-
-    state.account.verified = true;
-    state.account.loggedIn = true;
-    state.profile.name = `${state.account.firstName} ${state.account.lastName}`.trim();
-    state.profile.username = state.account.username;
-    state.profile.published = false;
-    state.activeTab = "content";
-    saveState();
-    location.hash = "#editor";
-    render();
-    showToast("Conta verificada. Sua Linkki está pronta para crescer!");
+    if (code.length !== 6) { setFormError(verifyForm, "Digite os seis números do código."); return; }
+    const button = verifyForm.querySelector('[type="submit"]'); button.disabled = true;
+    try {
+      const { data, error } = await authClient.auth.verifyOtp({ email: state.account.email, token: code, type: "email" });
+      if (error) throw error;
+      if (!data.session) throw new Error('Não foi possível iniciar a sessão.');
+      state.account.verified = true; state.account.loggedIn = true;
+      state.profile.name = `${state.account.firstName} ${state.account.lastName}`.trim();
+      state.profile.username = state.account.username; state.profile.published = false;
+      state.activeTab = "content"; saveState(); location.hash = "#editor"; render();
+      showToast("Conta verificada! Sua Linkki está pronta.");
+    } catch (error) { setFormError(verifyForm, authError(error)); }
+    finally { button.disabled = false; }
   });
 
   const loginForm = document.querySelector('[data-form="login"]');
-  loginForm?.addEventListener("submit", (event) => {
+  loginForm?.addEventListener("submit", async (event) => {
     event.preventDefault();
+    if (!requireAuthClient(loginForm)) return;
     const data = new FormData(loginForm);
     const email = String(data.get("loginEmail") || "").trim().toLowerCase();
-    if (email !== state.account.email.toLowerCase()) {
-      setFormError(loginForm, "Não encontramos uma conta com esse e-mail.");
-      return;
-    }
-    if (!state.loginCodeSent) {
-      state.loginCodeSent = true;
-      saveState();
-      render();
-      showToast("Código de acesso enviado.");
-      return;
-    }
-    const code = String(data.get("loginCode") || "").replace(/\D/g, "");
-    if (code !== TEST_VERIFICATION_CODE) {
-      setFormError(loginForm, "Código incorreto. Tente novamente.");
-      return;
-    }
-    state.account.loggedIn = true;
-    state.loginCodeSent = false;
-    saveState();
-    location.hash = "#editor";
-    render();
+    const button = loginForm.querySelector('[type="submit"]'); button.disabled = true;
+    try {
+      if (!state.loginCodeSent) {
+        const { error } = await authClient.auth.signInWithOtp({ email, options: { shouldCreateUser: false } });
+        if (error) throw error;
+        state.account.email = email; state.loginCodeSent = true; saveState(); render();
+        showToast("Código de acesso enviado.");
+      } else {
+        const code = String(data.get("loginCode") || "").replace(/\D/g, "");
+        if (code.length !== 6) throw new Error("Digite os seis números do código.");
+        const { data: result, error } = await authClient.auth.verifyOtp({ email, token: code, type: "email" });
+        if (error) throw error;
+        if (!result.session) throw new Error('Não foi possível iniciar a sessão.');
+        state.account.verified = true; state.account.loggedIn = true; state.loginCodeSent = false;
+        state.account.email = email;
+        const metadata = result.user?.user_metadata || {};
+        state.account.firstName = metadata.first_name || state.account.firstName;
+        state.account.lastName = metadata.last_name || state.account.lastName;
+        state.account.username = metadata.username || state.account.username;
+        state.profile.name = `${state.account.firstName} ${state.account.lastName}`.trim() || state.profile.name;
+        state.profile.username = state.account.username || state.profile.username;
+        saveState(); location.hash = "#editor"; render();
+      }
+    } catch (error) { setFormError(loginForm, authError(error)); }
+    finally { button.disabled = false; }
   });
 
   document.querySelector('[data-action="open-menu"]')?.addEventListener("click", () => {
