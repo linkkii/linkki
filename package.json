@@ -1,0 +1,12 @@
+{
+  "name": "linkki",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Conecte tudo que é seu.",
+  "type": "module",
+  "scripts": {
+    "dev": "node serve.mjs",
+    "start": "node serve.mjs"
+  }
+}
+
