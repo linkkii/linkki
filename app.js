@@ -265,6 +265,127 @@ function loadState() {
   }
 }
 
+// v0.2: estado de cada conta no Supabase (tabela linkki_user_data).
+// Nunca envie dados de login, OTP ou sessao para o banco.
+const legacyLocalState = loadState();
+let cloudUserId = null;
+let cloudSaveTimer = null;
+let cloudSaveChain = Promise.resolve();
+let cloudRevision = 0;
+let cloudReady = false;
+let cloudErrorShown = false;
+
+function editableSnapshot() {
+  return {
+    profile: state.profile,
+    links: state.links,
+    analytics: state.analytics,
+    userPages: state.userPages,
+    currentPageId: state.currentPageId,
+    communityTemplates: state.communityTemplates,
+  };
+}
+
+function applyCloudSnapshot(snapshot) {
+  if (!snapshot || typeof snapshot !== 'object' || Array.isArray(snapshot)) return;
+  // Reutiliza o normalizador existente sem sobrescrever o estado de autenticacao.
+  const previous = localStorage.getItem(STORAGE_KEY);
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(snapshot));
+    const normalized = loadState();
+    state.profile = normalized.profile;
+    state.links = normalized.links;
+    state.analytics = normalized.analytics;
+    state.userPages = normalized.userPages;
+    state.currentPageId = normalized.currentPageId;
+    state.communityTemplates = normalized.communityTemplates;
+    if (!state.userPages.length) state.userPages = seedUserPages(state.profile);
+  } finally {
+    if (previous === null) localStorage.removeItem(STORAGE_KEY);
+    else localStorage.setItem(STORAGE_KEY, previous);
+  }
+}
+
+function reportCloudError(error) {
+  console.error('Linkki: falha na sincronizacao', error);
+  const status = document.querySelector('.save-status');
+  if (status) status.textContent = 'Nao sincronizado';
+  if (!cloudErrorShown) {
+    cloudErrorShown = true;
+    showToast('Nao foi possivel sincronizar. Seus dados continuam neste navegador.');
+  }
+}
+
+function queueCloudSave() {
+  if (!cloudReady || !cloudUserId || !authClient) return;
+  const owner = cloudUserId;
+  const revision = ++cloudRevision;
+  clearTimeout(cloudSaveTimer);
+  cloudSaveTimer = setTimeout(() => {
+    const payload = structuredClone(editableSnapshot());
+    cloudSaveChain = cloudSaveChain.then(async () => {
+      if (owner !== cloudUserId || !cloudReady || revision !== cloudRevision) return;
+      const { error } = await authClient.from('linkki_user_data').upsert({
+        user_id: owner, data: payload, updated_at: new Date().toISOString()
+      }, { onConflict: 'user_id' });
+      if (error) throw error;
+      cloudErrorShown = false;
+      const status = document.querySelector('.save-status');
+      if (status && owner === cloudUserId) status.textContent = 'Salvo na nuvem';
+    }).catch(reportCloudError);
+  }, 650);
+}
+
+async function initializeCloudForUser(user) {
+  if (!user?.id || !authClient) return;
+  clearTimeout(cloudSaveTimer);
+  cloudReady = false;
+  cloudUserId = user.id;
+  cloudRevision++;
+  const { data, error } = await authClient.from('linkki_user_data')
+    .select('data').eq('user_id', user.id).maybeSingle();
+  if (error) { reportCloudError(error); return; }
+  if (data?.data) {
+    applyCloudSnapshot(data.data);
+  } else {
+    const sameAccount = legacyLocalState.account?.verified &&
+      legacyLocalState.account?.email?.toLowerCase() === user.email?.toLowerCase();
+    const importOld = sameAccount && window.confirm(
+      'Encontramos dados salvos neste navegador para esta conta. Deseja importa-los para a nuvem?'
+    );
+    if (importOld) applyCloudSnapshot(legacyLocalState);
+    else {
+      const fresh = cloneDefaultState();
+      applyCloudSnapshot(fresh);
+      state.profile.name = [user.user_metadata?.first_name, user.user_metadata?.last_name].filter(Boolean).join(' ') || state.profile.name;
+      state.profile.username = user.user_metadata?.username || state.profile.username;
+      state.profile.published = false;
+    }
+  }
+  state.account.email = user.email || state.account.email;
+  state.account.firstName = user.user_metadata?.first_name || state.account.firstName;
+  state.account.lastName = user.user_metadata?.last_name || state.account.lastName;
+  state.account.username = user.user_metadata?.username || state.account.username;
+  state.account.verified = true;
+  state.account.loggedIn = true;
+  cloudReady = true;
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  if (!data?.data) queueCloudSave();
+}
+
+async function restoreSupabaseSession() {
+  // O estado de login local nao e prova de autenticacao.
+  state.account.loggedIn = false;
+  state.account.verified = false;
+  if (!authClient) { render(); return; }
+  try {
+    const { data, error } = await authClient.auth.getUser();
+    if (error || !data?.user) { render(); return; }
+    await initializeCloudForUser(data.user);
+  } catch (error) { reportCloudError(error); }
+  render();
+}
+
 let state = loadState();
 if (state.activeTab === "community") {
   state.activeSection = "community";
@@ -277,9 +398,10 @@ let menuOpen = false;
 
 function saveState() {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  queueCloudSave();
   const status = document.querySelector(".save-status");
   if (status) {
-    status.textContent = "Salvo";
+    status.textContent = cloudReady ? "Salvando..." : "Salvo neste navegador";
   }
 }
 
@@ -1416,6 +1538,7 @@ function bindEvents() {
       state.account.verified = true; state.account.loggedIn = true;
       state.profile.name = `${state.account.firstName} ${state.account.lastName}`.trim();
       state.profile.username = state.account.username; state.profile.published = false;
+      await initializeCloudForUser(data.user);
       state.activeTab = "content"; saveState(); location.hash = "#editor"; render();
       showToast("Conta verificada! Sua Linkki está pronta.");
     } catch (error) { setFormError(verifyForm, authError(error)); }
@@ -1449,6 +1572,7 @@ function bindEvents() {
         state.account.username = metadata.username || state.account.username;
         state.profile.name = `${state.account.firstName} ${state.account.lastName}`.trim() || state.profile.name;
         state.profile.username = state.account.username || state.profile.username;
+        await initializeCloudForUser(result.user);
         saveState(); location.hash = "#editor"; render();
       }
     } catch (error) { setFormError(loginForm, authError(error)); }
@@ -1912,4 +2036,4 @@ function bindEvents() {
 }
 
 window.addEventListener("hashchange", render);
-window.addEventListener("DOMContentLoaded", render);
+window.addEventListener("DOMContentLoaded", restoreSupabaseSession);
