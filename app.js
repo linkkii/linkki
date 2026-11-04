@@ -79,6 +79,7 @@ const defaultState = {
   communityView: "discover",
   signupStep: 1,
   loginCodeSent: false,
+  passwordResetMode: false,
   account: {
     firstName: "",
     lastName: "",
@@ -386,6 +387,7 @@ async function restoreSupabaseSession() {
   render();
 }
 
+let pendingSignupPassword = "";
 let state = loadState();
 if (state.activeTab === "community") {
   state.activeSection = "community";
@@ -607,6 +609,14 @@ function signupPage() {
             <span class="field-label">E-mail</span>
             <input class="input" name="email" type="email" autocomplete="email" required value="${escapeHtml(state.account.email)}" placeholder="voce@email.com" />
           </label>
+          <label class="field field--wide">
+            <span class="field-label">Crie uma senha</span>
+            <input class="input" name="password" type="password" autocomplete="new-password" minlength="8" required placeholder="Mínimo de 8 caracteres" />
+          </label>
+          <label class="field field--wide">
+            <span class="field-label">Confirme sua senha</span>
+            <input class="input" name="passwordConfirm" type="password" autocomplete="new-password" minlength="8" required placeholder="Digite a senha novamente" />
+          </label>
         </div>
         <p class="form-error" role="alert"></p>
         <button class="button button--primary auth-submit" type="submit">Continuar <span aria-hidden="true">→</span></button>
@@ -665,7 +675,7 @@ function loginPage() {
   const content = `
     <div class="auth-heading">
       <h2>Entre na sua Linkki</h2>
-      <p>${hasAccount ? "Receba um código no e-mail cadastrado para acessar o editor." : "Ainda não existe uma conta criada neste navegador."}</p>
+      <p>${state.passwordResetMode ? "Defina uma senha para sua conta usando um código enviado por e-mail." : "Entre com seu e-mail e sua senha."}</p>
     </div>
     ${hasAccount ? `
       <form class="auth-form" data-form="login">
@@ -673,16 +683,15 @@ function loginPage() {
           <span class="field-label">E-mail</span>
           <input class="input" name="loginEmail" type="email" autocomplete="email" required value="${escapeHtml(state.account.email)}" />
         </label>
-        ${state.loginCodeSent ? `
-          <label class="field">
-            <span class="field-label">Código de acesso</span>
-            <input class="input verification-input" name="loginCode" inputmode="numeric" maxlength="6" placeholder="000000" required />
-          </label>
-
-        ` : ""}
+        ${state.passwordResetMode ? `
+          ${state.loginCodeSent ? `<label class="field"><span class="field-label">Código recebido por e-mail</span><input class="input verification-input" name="loginCode" inputmode="numeric" maxlength="6" placeholder="000000" required /></label>
+          <label class="field"><span class="field-label">Nova senha</span><input class="input" name="newPassword" type="password" autocomplete="new-password" minlength="8" required /></label>
+          <label class="field"><span class="field-label">Confirme a nova senha</span><input class="input" name="newPasswordConfirm" type="password" autocomplete="new-password" minlength="8" required /></label>` : ""}
+        ` : `<label class="field"><span class="field-label">Senha</span><input class="input" name="loginPassword" type="password" autocomplete="current-password" required /></label>`}
         <p class="form-error" role="alert"></p>
-        <button class="button button--primary auth-submit" type="submit">${state.loginCodeSent ? "Entrar" : "Enviar código"}</button>
+        <button class="button button--primary auth-submit" type="submit">${state.passwordResetMode ? (state.loginCodeSent ? "Salvar senha e entrar" : "Enviar código para definir senha") : "Entrar"}</button>
       </form>
+      <p class="auth-switch"><button class="text-button" type="button" data-action="toggle-password-reset">${state.passwordResetMode ? "Voltar ao login com senha" : "Esqueci minha senha / Primeiro acesso com código"}</button></p>
     ` : `<a class="button button--primary auth-submit" href="#signup">Criar minha conta</a>`}
     <p class="auth-switch"><a href="#home">← Voltar para o início</a></p>
   `;
@@ -1460,6 +1469,11 @@ function bindEvents() {
     const lastName = String(data.get("lastName") || "").trim();
     const username = String(data.get("username") || "").toLowerCase().replace(/[^a-z0-9._-]/g, "").slice(0, 30);
     const email = String(data.get("email") || "").trim().toLowerCase();
+    const password = String(data.get("password") || "");
+    const passwordConfirm = String(data.get("passwordConfirm") || "");
+    if (password.length < 8 || password !== passwordConfirm) {
+      setFormError(detailsForm, "A senha deve ter pelo menos 8 caracteres e ser igual nos dois campos."); return;
+    }
 
     if (!firstName || !lastName || !username || !email) {
       setFormError(detailsForm, "Preencha todos os campos para continuar.");
@@ -1471,6 +1485,7 @@ function bindEvents() {
     }
 
     state.account = { ...state.account, firstName, lastName, username, email };
+    pendingSignupPassword = password;
     state.signupStep = 2;
     saveState();
     render();
@@ -1492,9 +1507,10 @@ function bindEvents() {
     const button = categoryForm.querySelector('[type="submit"]');
     button.disabled = true;
     try {
-      const { error } = await authClient.auth.signInWithOtp({
+      const { error } = await authClient.auth.signUp({
         email: state.account.email,
-        options: { shouldCreateUser: true, data: {
+        password: pendingSignupPassword,
+        options: { data: {
           first_name: state.account.firstName, last_name: state.account.lastName,
           username: state.account.username, category: state.account.category
         } }
@@ -1517,7 +1533,7 @@ function bindEvents() {
     if (!requireAuthClient(verifyForm)) return;
     const button = event.currentTarget; button.disabled = true;
     try {
-      const { error } = await authClient.auth.signInWithOtp({ email: state.account.email, options: { shouldCreateUser: true } });
+      const { error } = await authClient.auth.resend({ type: "signup", email: state.account.email });
       if (error) throw error;
       showToast("Novo código enviado.");
     } catch (error) { setFormError(verifyForm, authError(error)); }
@@ -1532,10 +1548,11 @@ function bindEvents() {
     if (code.length !== 6) { setFormError(verifyForm, "Digite os seis números do código."); return; }
     const button = verifyForm.querySelector('[type="submit"]'); button.disabled = true;
     try {
-      const { data, error } = await authClient.auth.verifyOtp({ email: state.account.email, token: code, type: "email" });
+      const { data, error } = await authClient.auth.verifyOtp({ email: state.account.email, token: code, type: "signup" });
       if (error) throw error;
       if (!data.session) throw new Error('Não foi possível iniciar a sessão.');
       state.account.verified = true; state.account.loggedIn = true;
+      pendingSignupPassword = "";
       state.profile.name = `${state.account.firstName} ${state.account.lastName}`.trim();
       state.profile.username = state.account.username; state.profile.published = false;
       await initializeCloudForUser(data.user);
@@ -1543,6 +1560,12 @@ function bindEvents() {
       showToast("Conta verificada! Sua Linkki está pronta.");
     } catch (error) { setFormError(verifyForm, authError(error)); }
     finally { button.disabled = false; }
+  });
+
+  document.querySelector('[data-action="toggle-password-reset"]')?.addEventListener("click", () => {
+    state.passwordResetMode = !state.passwordResetMode;
+    state.loginCodeSent = false;
+    render();
   });
 
   const loginForm = document.querySelector('[data-form="login"]');
@@ -1553,28 +1576,42 @@ function bindEvents() {
     const email = String(data.get("loginEmail") || "").trim().toLowerCase();
     const button = loginForm.querySelector('[type="submit"]'); button.disabled = true;
     try {
-      if (!state.loginCodeSent) {
+      if (state.passwordResetMode && !state.loginCodeSent) {
         const { error } = await authClient.auth.signInWithOtp({ email, options: { shouldCreateUser: false } });
         if (error) throw error;
-        state.account.email = email; state.loginCodeSent = true; saveState(); render();
-        showToast("Código de acesso enviado.");
-      } else {
-        const code = String(data.get("loginCode") || "").replace(/\D/g, "");
-        if (code.length !== 6) throw new Error("Digite os seis números do código.");
-        const { data: result, error } = await authClient.auth.verifyOtp({ email, token: code, type: "email" });
-        if (error) throw error;
-        if (!result.session) throw new Error('Não foi possível iniciar a sessão.');
-        state.account.verified = true; state.account.loggedIn = true; state.loginCodeSent = false;
-        state.account.email = email;
-        const metadata = result.user?.user_metadata || {};
-        state.account.firstName = metadata.first_name || state.account.firstName;
-        state.account.lastName = metadata.last_name || state.account.lastName;
-        state.account.username = metadata.username || state.account.username;
-        state.profile.name = `${state.account.firstName} ${state.account.lastName}`.trim() || state.profile.name;
-        state.profile.username = state.account.username || state.profile.username;
-        await initializeCloudForUser(result.user);
-        saveState(); location.hash = "#editor"; render();
+        state.account.email = email; state.loginCodeSent = true; render();
+        showToast("Confira seu e-mail para definir a senha.");
+        return;
       }
+      let result;
+      if (state.passwordResetMode) {
+        const code = String(data.get("loginCode") || "").replace(/\D/g, "");
+        const password = String(data.get("newPassword") || "");
+        if (code.length !== 6) throw new Error("Digite os seis números do código.");
+        if (password.length < 8 || password !== String(data.get("newPasswordConfirm") || "")) throw new Error("Use uma senha de 8 caracteres ou mais, igual nos dois campos.");
+        const verified = await authClient.auth.verifyOtp({ email, token: code, type: "email" });
+        if (verified.error) throw verified.error;
+        if (!verified.data.session) throw new Error("Não foi possível verificar o código.");
+        const updated = await authClient.auth.updateUser({ password });
+        if (updated.error) throw updated.error;
+        result = verified.data;
+      } else {
+        const signed = await authClient.auth.signInWithPassword({ email, password: String(data.get("loginPassword") || "") });
+        if (signed.error) throw signed.error;
+        result = signed.data;
+      }
+      if (!result.session) throw new Error("Não foi possível iniciar a sessão.");
+      state.account.verified = true; state.account.loggedIn = true;
+      state.loginCodeSent = false; state.passwordResetMode = false;
+      state.account.email = email;
+      const metadata = result.user?.user_metadata || {};
+      state.account.firstName = metadata.first_name || state.account.firstName;
+      state.account.lastName = metadata.last_name || state.account.lastName;
+      state.account.username = metadata.username || state.account.username;
+      state.profile.name = `${state.account.firstName} ${state.account.lastName}`.trim() || state.profile.name;
+      state.profile.username = state.account.username || state.profile.username;
+      await initializeCloudForUser(result.user);
+      saveState(); location.hash = "#editor"; render();
     } catch (error) { setFormError(loginForm, authError(error)); }
     finally { button.disabled = false; }
   });
