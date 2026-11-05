@@ -1509,7 +1509,7 @@ function publicPage() {
   return `
     <main class="public-page">
       <div class="public-actions">
-        <button class="public-action" data-action="share" aria-label="Compartilhar página" title="Compartilhar">↗</button>
+        <button class="public-action" data-action="share" aria-label="Copiar ou compartilhar link público" title="Copiar ou compartilhar link público">↗</button>
         <a class="public-action" href="#editor" aria-label="Editar página" title="Editar">✎</a>
       </div>
       ${publicProfileMarkup()}
@@ -2317,18 +2317,33 @@ function bindEvents() {
   });
 
   document.querySelector('[data-action="share"]')?.addEventListener("click", async () => {
-    state.analytics.shares += 1;
-    saveState();
     const url = `${location.origin}${location.pathname}#/${encodeURIComponent(state.account.username || state.profile.username)}`;
+    const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
     try {
-      if (navigator.share) {
+      // On desktop, native share dialogs may briefly flash and disappear.
+      // Copy the public URL instead, with visible confirmation.
+      if (isMobile && typeof navigator.share === "function") {
         await navigator.share({ title: `${state.profile.name} na Linkki`, text: state.profile.bio, url });
-      } else {
+      } else if (navigator.clipboard?.writeText) {
         await navigator.clipboard.writeText(url);
         showToast("Link copiado!");
+      } else {
+        const temporary = document.createElement("textarea");
+        temporary.value = url;
+        temporary.setAttribute("readonly", "");
+        temporary.style.position = "fixed";
+        temporary.style.opacity = "0";
+        document.body.appendChild(temporary);
+        temporary.select();
+        const copied = document.execCommand("copy");
+        temporary.remove();
+        if (!copied) throw new Error("Falha ao copiar link");
+        showToast("Link copiado!");
       }
+      state.analytics.shares += 1;
+      saveState();
     } catch (error) {
-      if (error?.name !== "AbortError") showToast("Não foi possível compartilhar.");
+      if (error?.name !== "AbortError") showToast("Não foi possível copiar o link.");
     }
   });
 
