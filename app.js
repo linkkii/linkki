@@ -1236,6 +1236,9 @@ function appMenuMarkup() {
         <span>${escapeHtml(initials(accountName))}</span>
         <div><strong>${escapeHtml(accountName)}</strong><small>${escapeHtml(state.account.email || `@${state.profile.username}`)}</small></div>
       </div>
+      <div style="padding:12px 20px 22px">
+        <button type="button" class="button" data-action="logout" style="width:100%">Sair da conta</button>
+      </div>
     </aside>
   `;
 }
@@ -1254,6 +1257,7 @@ function accountPanel() {
         <p>@${escapeHtml(state.account.username || state.profile.username)}</p>
         <span class="verified-pill">✓ E-mail verificado</span>
         <button class="button button--primary" data-app-section="editor">Editar minha página</button>
+        <button type="button" class="button" data-action="logout" style="margin-top:10px">Sair da conta</button>
       </section>
       <div class="account-details-column">
         <section class="card account-card">
@@ -1614,6 +1618,35 @@ function bindEvents() {
       saveState(); location.hash = "#editor"; render();
     } catch (error) { setFormError(loginForm, authError(error)); }
     finally { button.disabled = false; }
+  });
+
+  document.querySelectorAll('[data-action="logout"]').forEach((button) => {
+    button.addEventListener("click", async () => {
+      if (!authClient) { showToast("Conexão com o Supabase indisponível."); return; }
+      button.disabled = true;
+      try {
+        // Aguarda o salvamento automático pendente antes de encerrar a sessão.
+        if (cloudSaveTimer) await new Promise((resolve) => setTimeout(resolve, 750));
+        await cloudSaveChain;
+        const { error } = await authClient.auth.signOut();
+        if (error) throw error;
+        clearTimeout(cloudSaveTimer);
+        cloudSaveTimer = null;
+        cloudReady = false;
+        cloudUserId = null;
+        cloudRevision++;
+        cloudErrorShown = false;
+        menuOpen = false;
+        pendingSignupPassword = "";
+        state = cloneDefaultState();
+        localStorage.removeItem(STORAGE_KEY);
+        location.hash = "#login";
+        render();
+      } catch (error) {
+        showToast("Não foi possível sair: " + authError(error));
+        button.disabled = false;
+      }
+    });
   });
 
   document.querySelector('[data-action="open-menu"]')?.addEventListener("click", () => {
