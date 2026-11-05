@@ -3460,3 +3460,45 @@ button.template-stat {
 .template-brand-image { display: inline-block; width: auto; height: 12px; max-width: 72px; object-fit: contain; vertical-align: middle; }
 .auth-kanji-image { width: 225px; height: auto; max-height: 170px; object-fit: contain; opacity: .12; }
 @media (max-width: 640px) { .brand-image { height: 34px; max-width: 170px; } }
+
+/* Linkki — movimento suave do menu lateral (sem alterar o layout) */
+.menu-overlay {
+  transition: opacity 300ms ease, visibility 300ms ease;
+  visibility: hidden;
+}
+.menu-overlay.is-open { visibility: visible; }
+.app-drawer {
+  transform: translate3d(-105%, 0, 0);
+  transition: transform 380ms cubic-bezier(.22, 1, .36, 1);
+  will-change: transform;
+}
+.app-drawer.is-open { transform: translate3d(0, 0, 0); }
+.app-drawer .drawer-header,
+.app-drawer .drawer-label,
+.app-drawer .drawer-item,
+.app-drawer .drawer-account {
+  opacity: 0;
+  transform: translateX(-12px);
+  transition: opacity 260ms ease, transform 360ms cubic-bezier(.22, 1, .36, 1);
+}
+.app-drawer.is-open .drawer-header,
+.app-drawer.is-open .drawer-label,
+.app-drawer.is-open .drawer-item,
+.app-drawer.is-open .drawer-account {
+  opacity: 1;
+  transform: translateX(0);
+}
+.app-drawer.is-open .drawer-label { transition-delay: 60ms; }
+.app-drawer.is-open .drawer-item:nth-child(1) { transition-delay: 75ms; }
+.app-drawer.is-open .drawer-item:nth-child(2) { transition-delay: 105ms; }
+.app-drawer.is-open .drawer-item:nth-child(3) { transition-delay: 135ms; }
+.app-drawer.is-open .drawer-item:nth-child(4) { transition-delay: 165ms; }
+.app-drawer.is-open .drawer-account { transition-delay: 180ms; }
+@media (prefers-reduced-motion: reduce) {
+  .menu-overlay, .app-drawer,
+  .app-drawer .drawer-header, .app-drawer .drawer-label,
+  .app-drawer .drawer-item, .app-drawer .drawer-account {
+    transition-duration: 0.01ms !important;
+    transition-delay: 0ms !important;
+  }
+}

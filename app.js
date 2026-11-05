@@ -1479,7 +1479,7 @@ function editorPage() {
     <main class="app-shell">
       <header class="app-topbar">
         <div class="topbar-brand-group">
-          <button class="menu-button" data-action="open-menu" aria-label="Abrir menu"><span></span><span></span><span></span></button>
+          <button class="menu-button" data-action="open-menu" aria-label="Abrir menu" aria-expanded="false"><span></span><span></span><span></span></button>
           <button class="topbar-logo" data-app-section="editor" aria-label="Abrir editor">${brand()}</button>
         </div>
         <div class="topbar-actions">
@@ -1596,7 +1596,10 @@ function moveLink(id, direction) {
   refreshEditorViews();
 }
 
+let menuKeydownController = new AbortController();
 function bindEvents() {
+  menuKeydownController.abort();
+  menuKeydownController = new AbortController();
   const setFormError = (form, message) => {
     const error = form?.querySelector(".form-error");
     if (error) error.textContent = message;
@@ -1823,17 +1826,30 @@ function bindEvents() {
     });
   });
 
-  document.querySelector('[data-action="open-menu"]')?.addEventListener("click", () => {
-    menuOpen = true;
-    render();
-  });
+  // Atualiza o menu no DOM, sem reconstruir a página: assim a transição CSS
+  // pode acontecer tanto na abertura quanto no fechamento.
+  const setMenuOpen = (open) => {
+    menuOpen = open;
+    const drawer = document.querySelector(".app-drawer");
+    const overlay = document.querySelector(".menu-overlay");
+    drawer?.classList.toggle("is-open", open);
+    overlay?.classList.toggle("is-open", open);
+    drawer?.setAttribute("aria-hidden", String(!open));
+    overlay?.setAttribute("aria-hidden", String(!open));
+    document.querySelector('[data-action="open-menu"]')?.setAttribute("aria-expanded", String(open));
+    if (open) drawer?.querySelector(".drawer-close")?.focus({ preventScroll: true });
+    else document.querySelector('[data-action="open-menu"]')?.focus({ preventScroll: true });
+  };
 
+  document.querySelector('[data-action="open-menu"]')?.addEventListener("click", () => setMenuOpen(true));
   document.querySelectorAll('[data-action="close-menu"]').forEach((button) => {
-    button.addEventListener("click", () => {
-      menuOpen = false;
-      render();
-    });
+    button.addEventListener("click", () => setMenuOpen(false));
   });
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && menuOpen && document.querySelector(".app-drawer")) {
+      setMenuOpen(false);
+    }
+  }, { signal: menuKeydownController.signal });
 
   document.querySelectorAll("[data-app-section]").forEach((button) => {
     button.addEventListener("click", () => {
