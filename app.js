@@ -1492,7 +1492,7 @@ function bindEvents() {
     try {
       const available = await checkUsernameAvailability(nickname);
       if (sequence !== usernameCheckSequence || nickname !== String(usernameField?.value || '').trim().toLowerCase()) return false;
-      if (usernameStatus) usernameStatus.textContent = available ? 'Nome de usuário disponível ✓' : 'Esse nome de usuário já está em uso. Escolha outro.';
+      if (usernameStatus) usernameStatus.textContent = available ? 'Nome de usuário disponível ✓' : 'Esse nome de usuário já está em uso.';
       return available;
     } catch (error) {
       if (usernameStatus && sequence === usernameCheckSequence) usernameStatus.textContent = error.message;
