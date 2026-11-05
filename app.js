@@ -583,8 +583,7 @@ function showToast(message) {
 function brand(light = false) {
   return `
     <span class="brand ${light ? "brand--light" : ""}" aria-label="Linkki">
-      <span class="brand-mark" aria-hidden="true">木</span>
-      <span>Linkki</span>
+      <img class="brand-image" src="./logo-linkki.png" alt="" />
     </span>
   `;
 }
@@ -677,7 +676,7 @@ function authShell(content, title, description) {
       <a class="auth-brand" href="#home">${brand()}</a>
       <section class="auth-layout">
         <aside class="auth-aside">
-          <span class="auth-kanji" aria-hidden="true">木</span>
+          <img class="auth-kanji auth-kanji-image" src="./logo-linkki.png" alt="" aria-hidden="true" />
           <p class="eyebrow"><span class="eyebrow-dot"></span> Comece pela raiz</p>
           <h1>${title}</h1>
           <p>${description}</p>
@@ -900,7 +899,7 @@ function publicProfileMarkup(page = { profile: state.profile, links: state.links
             >${escapeHtml(link.title || "Novo link")}</a>
           `).join("") : `<div class="empty-state"><strong>Nenhum link visível</strong>Ative um link no editor.</div>`}
         </div>
-        <a class="profile-brand" href="#home"><span aria-hidden="true">木</span> Linkki</a>
+        <a class="profile-brand" href="#home" aria-label="Linkki"><img class="profile-brand-image" src="./logo-linkki.png" alt="" /></a>
       </div>
     </div>
   `;
@@ -1185,7 +1184,7 @@ function templatePreviewMarkup(item) {
       <div class="template-mini-links">
         <span>Meu destaque</span><span>Conteúdo novo</span><span>Fale comigo</span>
       </div>
-      <small>木 Linkki</small>
+      <small><img class="template-brand-image" src="./logo-linkki.png" alt="Linkki" /></small>
     </div>
   `;
 }
