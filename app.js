@@ -275,40 +275,6 @@ let cloudSaveChain = Promise.resolve();
 let cloudRevision = 0;
 let cloudReady = false;
 let cloudErrorShown = false;
-let publicPageData = null;
-let publicPageLoading = false;
-const RESERVED_ROUTES = new Set(['home','editor','login','signup','public']);
-function publicUrl(slug) { return `${location.origin}${location.pathname}#/${encodeURIComponent(slug)}`; }
-function publicSnapshot() {
-  const p = state.profile;
-  return { profile: {
-    name: p.name, username: state.account.username, bio: p.bio, avatar: p.avatar,
-    buttonStyle: p.buttonStyle, titleFont: p.titleFont, bodyFont: p.bodyFont,
-    customColors: p.customColors, buttonBorder: p.buttonBorder, buttonShadow: p.buttonShadow,
-    customFonts: p.customFonts
-  }, links: state.links.filter(x => x.visible).map(x => ({id:x.id,title:x.title,url:x.url,visible:true})) };
-}
-async function syncPublicPage(owner, payload) {
-  const slug = (state.account.username || '').toLowerCase();
-  if (!slug || owner !== cloudUserId) return;
-  const {error} = await authClient.from('linkki_public_pages').upsert({
-    user_id: owner, slug, published: Boolean(payload.profile.published),
-    public_json: publicSnapshot(), updated_at: new Date().toISOString()
-  }, {onConflict:'user_id'});
-  if (error) throw error;
-}
-async function loadPublicPage(slug) {
-  if (!authClient) return;
-  publicPageLoading = true;
-  publicPageData = null;
-  render();
-  const {data,error} = await authClient.from('linkki_public_pages')
-    .select('public_json').eq('slug',slug).eq('published',true).maybeSingle();
-  publicPageData = error ? null : data?.public_json || null;
-  publicPageLoading = false;
-  render();
-}
-
 
 function editableSnapshot() {
   return {
@@ -364,7 +330,6 @@ function queueCloudSave() {
         user_id: owner, data: payload, updated_at: new Date().toISOString()
       }, { onConflict: 'user_id' });
       if (error) throw error;
-      await syncPublicPage(owner, payload);
       cloudErrorShown = false;
       const status = document.querySelector('.save-status');
       if (status && owner === cloudUserId) status.textContent = 'Salvo na nuvem';
@@ -768,11 +733,10 @@ function buttonShadowValue(shadow = state.profile.buttonShadow) {
   return `${x}px ${y}px ${blur}px rgba(42,60,36,${opacity})`;
 }
 
-function publicProfileMarkup(snapshot = state) {
-  const profile = snapshot.profile;
-  const visibleLinks = (snapshot.links || []).filter((link) => link.visible);
-  const custom = profile.customColors;
-  const border = profile.buttonBorder;
+function publicProfileMarkup() {
+  const visibleLinks = state.links.filter((link) => link.visible);
+  const custom = state.profile.customColors;
+  const border = state.profile.buttonBorder;
   const colorStyle = [
     `--profile-bg:${validHex(custom.background, "#CAD593")}`,
     `--profile-text:${validHex(custom.text, "#2A3C24")}`,
@@ -780,22 +744,22 @@ function publicProfileMarkup(snapshot = state) {
     `--button-text:${validHex(custom.buttonText, "#CAD593")}`,
     `--button-border-width:${border.enabled ? "2px" : "0px"}`,
     `--button-border-color:${validHex(border.color, "#2A3C24")}`,
-    `--button-shadow:${buttonShadowValue(profile.buttonShadow)}`,
-    `--title-font:${fontCssValue(profile.titleFont)}`,
-    `--body-font:${fontCssValue(profile.bodyFont)}`,
+    `--button-shadow:${buttonShadowValue()}`,
+    `--title-font:${fontCssValue(state.profile.titleFont)}`,
+    `--body-font:${fontCssValue(state.profile.bodyFont)}`,
     `background:${validHex(custom.background, "#CAD593")}`,
   ].join(";");
-  const customFontStyle = profile.customFonts.length
-    ? `<style>${profile.customFonts.map((font) => `@font-face{font-family:"${customFontFamily(font.id)}";src:url("${escapeHtml(font.dataUrl)}")}`).join("")}</style>`
+  const customFontStyle = state.profile.customFonts.length
+    ? `<style>${state.profile.customFonts.map((font) => `@font-face{font-family:"${customFontFamily(font.id)}";src:url("${escapeHtml(font.dataUrl)}")}`).join("")}</style>`
     : "";
   return `
     ${customFontStyle}
-    <div class="profile-canvas bg-custom buttons-${escapeHtml(profile.buttonStyle)}" style="${escapeHtml(colorStyle)}">
+    <div class="profile-canvas bg-custom buttons-${escapeHtml(state.profile.buttonStyle)}" style="${escapeHtml(colorStyle)}">
       <div class="profile-inner">
-        ${(profile.avatar ? `<img class="public-avatar" src="${escapeHtml(profile.avatar)}" alt="Foto de perfil" />` : `<div class="public-avatar">木</div>`)}
-        <h1 class="public-name">${escapeHtml(profile.name || "Seu nome")}</h1>
-        <p class="public-handle">@${escapeHtml(profile.username || "seuusuario")}</p>
-        <p class="public-bio">${escapeHtml(profile.bio || "Conte um pouco sobre você.")}</p>
+        ${avatarMarkup("public-avatar")}
+        <h1 class="public-name">${escapeHtml(state.profile.name || "Seu nome")}</h1>
+        <p class="public-handle">@${escapeHtml(state.profile.username || "seuusuario")}</p>
+        <p class="public-bio">${escapeHtml(state.profile.bio || "Conte um pouco sobre você.")}</p>
         <div class="public-links">
           ${visibleLinks.length ? visibleLinks.map((link) => `
             <a
@@ -1439,12 +1403,6 @@ function publicPage() {
   `;
 }
 
-function visitorPage() {
-  if (publicPageLoading) return '<main class="public-page"><div class="profile-inner"><p>Carregando perfil...</p></div></main>';
-  if (!publicPageData) return '<main class="public-page"><div class="profile-inner"><h1>Perfil não encontrado</h1><p>Esta página não está publicada.</p><a href="#home">Voltar ao Linkki</a></div></main>';
-  return `<main class="public-page">${publicProfileMarkup(publicPageData)}</main>`;
-}
-
 function render() {
   const app = document.querySelector("#app");
   const route = location.hash.replace(/^#\/?/, "") || "home";
@@ -1458,8 +1416,6 @@ function render() {
     else app.innerHTML = editorPage();
   } else if (route === "public") {
     app.innerHTML = publicPage();
-  } else if (/^[a-z0-9._-]{1,30}$/.test(route) && !RESERVED_ROUTES.has(route)) {
-    app.innerHTML = visitorPage();
   } else {
     app.innerHTML = landingPage();
   }
@@ -1510,7 +1466,7 @@ function bindEvents() {
   };
 
   const detailsForm = document.querySelector('[data-form="signup-details"]');
-  detailsForm?.addEventListener("submit", async (event) => {
+  detailsForm?.addEventListener("submit", (event) => {
     event.preventDefault();
     const data = new FormData(detailsForm);
     const firstName = String(data.get("firstName") || "").trim();
@@ -1532,11 +1488,6 @@ function bindEvents() {
       return;
     }
 
-    if (RESERVED_ROUTES.has(username)) { setFormError(detailsForm, 'Este nome de usuário não está disponível.'); return; }
-    if (!requireAuthClient(detailsForm)) return;
-    const {data: available, error: checkError} = await authClient.rpc('linkki_username_available', {requested_username:username});
-    if (checkError) { setFormError(detailsForm, 'Não foi possível verificar o nome. Tente novamente.'); return; }
-    if (!available) { setFormError(detailsForm, 'Esse nome de usuário já está em uso. Escolha outro.'); return; }
     state.account = { ...state.account, firstName, lastName, username, email };
     pendingSignupPassword = password;
     state.signupStep = 2;
@@ -1557,8 +1508,6 @@ function bindEvents() {
     event.preventDefault();
     if (!state.account.category) { setFormError(categoryForm, "Selecione a opção que melhor descreve você."); return; }
     if (!requireAuthClient(categoryForm)) return;
-    const {data: available, error: checkError} = await authClient.rpc('linkki_username_available', {requested_username:state.account.username});
-    if (checkError || !available) { setFormError(categoryForm, 'Esse nome de usuário não está disponível. Volte e escolha outro.'); return; }
     const button = categoryForm.querySelector('[type="submit"]');
     button.disabled = true;
     try {
@@ -2034,9 +1983,7 @@ function bindEvents() {
     syncLivePreview();
   });
 
-  usernameInput?.setAttribute("readonly", "readonly");
-  usernameInput?.setAttribute("title", "O nickname é definido no cadastro");
-  /* usernameInput?.addEventListener("input", (event) => {
+  usernameInput?.addEventListener("input", (event) => {
     const clean = event.target.value.toLowerCase().replace(/[^a-z0-9._-]/g, "").slice(0, 30);
     event.target.value = clean;
     state.profile.username = clean;
@@ -2050,7 +1997,6 @@ function bindEvents() {
     syncLivePreview();
   });
 
-  */
   bioInput?.addEventListener("input", (event) => {
     state.profile.bio = event.target.value;
     const counter = event.target.closest(".field")?.querySelector(".field-label small");
@@ -2135,7 +2081,7 @@ function bindEvents() {
   document.querySelector('[data-action="share"]')?.addEventListener("click", async () => {
     state.analytics.shares += 1;
     saveState();
-    const url = publicUrl(state.account.username);
+    const url = location.href;
     try {
       if (navigator.share) {
         await navigator.share({ title: `${state.profile.name} na Linkki`, text: state.profile.bio, url });
@@ -2161,14 +2107,3 @@ function bindEvents() {
 
 window.addEventListener("hashchange", render);
 window.addEventListener("DOMContentLoaded", restoreSupabaseSession);
-
-// Busca páginas públicas anonimamente; não utiliza dados privados do visitante.
-let lastPublicSlug = null;
-function checkPublicRoute() {
-  const slug = location.hash.replace(/^#\/?/, '').toLowerCase();
-  if (/^[a-z0-9._-]{1,30}$/.test(slug) && !RESERVED_ROUTES.has(slug)) {
-    if (slug !== lastPublicSlug) { lastPublicSlug = slug; loadPublicPage(slug); }
-  } else { lastPublicSlug = null; }
-}
-window.addEventListener('hashchange', checkPublicRoute);
-checkPublicRoute();
