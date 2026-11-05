@@ -3555,3 +3555,32 @@ button.template-stat {
   .editor-panel--community .publish-info,
   .editor-panel--community .user-pages-grid > * { animation: none !important; }
 }
+
+/* Linkki: opções de fundo e animações de páginas públicas */
+.linkki-personalize-extra { margin-top: 18px; display: grid; gap: 12px; }
+.linkki-personalize-extra > strong { font-size: 13px; }
+.linkki-setting-description { color: var(--muted); font-size: 12px; margin: 0 0 14px; }
+.linkki-setting-options { display: flex; flex-wrap: wrap; gap: 10px; }
+.linkki-setting-options .choice { flex: 1 1 130px; min-height: 46px; padding: 12px; }
+.linkki-gradient-row { border: 1px solid var(--line); border-radius: 14px; }
+.profile-canvas.profile-motion-fade-top .profile-inner > *,
+.profile-canvas.profile-motion-fade-bottom .profile-inner > *,
+.profile-canvas.profile-motion-bounce .profile-inner > * {
+  animation-duration: .65s;
+  animation-fill-mode: both;
+  animation-timing-function: cubic-bezier(.2,.75,.25,1);
+}
+.profile-canvas.profile-motion-fade-top .profile-inner > * { animation-name: linkkiProfileFadeTop; }
+.profile-canvas.profile-motion-fade-bottom .profile-inner > * { animation-name: linkkiProfileFadeBottom; }
+.profile-canvas.profile-motion-bounce .profile-inner > * { animation-name: linkkiProfileBounce; animation-duration: .75s; }
+.profile-canvas[class*="profile-motion-"] .profile-inner > :nth-child(2) { animation-delay: .07s; }
+.profile-canvas[class*="profile-motion-"] .profile-inner > :nth-child(3) { animation-delay: .14s; }
+.profile-canvas[class*="profile-motion-"] .profile-inner > :nth-child(4) { animation-delay: .21s; }
+.profile-canvas[class*="profile-motion-"] .profile-inner > :nth-child(5) { animation-delay: .28s; }
+.profile-canvas[class*="profile-motion-"] .profile-inner > :nth-child(6) { animation-delay: .35s; }
+@keyframes linkkiProfileFadeTop { from { opacity: 0; transform: translateY(-22px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes linkkiProfileFadeBottom { from { opacity: 0; transform: translateY(22px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes linkkiProfileBounce { 0% { opacity: 0; transform: scale(.78); } 60% { opacity: 1; transform: scale(1.055); } 82% { transform: scale(.985); } 100% { opacity: 1; transform: scale(1); } }
+@media (prefers-reduced-motion: reduce) {
+  .profile-canvas[class*="profile-motion-"] .profile-inner > * { animation: none !important; }
+}

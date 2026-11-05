@@ -134,6 +134,9 @@ const defaultState = {
     bio: "Criatividade, rotina e tudo que inspira meu caminho.",
     avatar: "",
     background: "custom",
+    backgroundMode: "solid",
+    gradientSecondColor: "#F2F5DF",
+    elementAnimation: "none",
     buttonStyle: "rounded",
     titleFont: "system",
     bodyFont: "system",
@@ -182,6 +185,9 @@ function cloneDefaultState() {
 function appearanceSnapshot(profile) {
   return {
     customColors: JSON.parse(JSON.stringify(profile.customColors)),
+    backgroundMode: profile.backgroundMode || "solid",
+    gradientSecondColor: profile.gradientSecondColor || "#F2F5DF",
+    elementAnimation: profile.elementAnimation || "none",
     buttonStyle: profile.buttonStyle,
     titleFont: fontPresets[profile.titleFont] ? profile.titleFont : "system",
     bodyFont: fontPresets[profile.bodyFont] ? profile.bodyFont : "system",
@@ -361,7 +367,7 @@ function reportCloudError(error) {
 // Apenas os campos destinados à página pública são enviados para esta tabela.
 function publicPageSnapshot() {
   const profile = structuredClone(state.profile);
-  const allowed = ['name','username','bio','avatar','customColors','buttonStyle','buttonBorder','buttonShadow','titleFont','bodyFont','customFonts'];
+  const allowed = ['name','username','bio','avatar','customColors','backgroundMode','gradientSecondColor','elementAnimation','buttonStyle','buttonBorder','buttonShadow','titleFont','bodyFont','customFonts'];
   const safeProfile = Object.fromEntries(allowed.filter(k => Object.hasOwn(profile,k)).map(k => [k,profile[k]]));
   return { profile: safeProfile, links: state.links.filter(link => link.visible).map(link => ({ id: link.id, title: link.title, url: link.url, visible: true })) };
 }
@@ -376,7 +382,7 @@ async function syncPublicPage(owner, snapshot) {
     return;
   }
   const { error } = await authClient.from('linkki_public_pages').upsert({
-    user_id: owner, username, public_data: { profile: Object.fromEntries(['name','username','bio','avatar','customColors','buttonStyle','buttonBorder','buttonShadow','titleFont','bodyFont','customFonts'].filter(k => Object.hasOwn(snapshot.profile,k)).map(k => [k,snapshot.profile[k]])), links: snapshot.links.filter(link => link.visible).map(link => ({ id: link.id, title: link.title, url: link.url, visible: true })) }, updated_at: new Date().toISOString()
+    user_id: owner, username, public_data: { profile: Object.fromEntries(['name','username','bio','avatar','customColors','backgroundMode','gradientSecondColor','elementAnimation','buttonStyle','buttonBorder','buttonShadow','titleFont','bodyFont','customFonts'].filter(k => Object.hasOwn(snapshot.profile,k)).map(k => [k,snapshot.profile[k]])), links: snapshot.links.filter(link => link.visible).map(link => ({ id: link.id, title: link.title, url: link.url, visible: true })) }, updated_at: new Date().toISOString()
   }, { onConflict: 'user_id' });
   if (error) throw error;
 }
@@ -384,7 +390,7 @@ async function syncPublicPage(owner, snapshot) {
 function publicPublishPayload() {
   const snapshot = editableSnapshot();
   const profile = snapshot.profile;
-  const allowed = ['name','username','bio','avatar','customColors','buttonStyle','buttonBorder','buttonShadow','titleFont','bodyFont','customFonts'];
+  const allowed = ['name','username','bio','avatar','customColors','backgroundMode','gradientSecondColor','elementAnimation','buttonStyle','buttonBorder','buttonShadow','titleFont','bodyFont','customFonts'];
   return {
     profile: Object.fromEntries(allowed.filter(k => Object.hasOwn(profile,k)).map(k => [k,profile[k]])),
     links: snapshot.links.filter(link => link.visible).map(link => ({ id: link.id, title: link.title, url: link.url, visible: true }))
@@ -864,7 +870,11 @@ function publicProfileMarkup(page = { profile: state.profile, links: state.links
   const profile = page.profile;
   const visibleLinks = page.links.filter((link) => link.visible);
   const custom = profile.customColors;
-  const border = profile.buttonBorder;
+  const border = profile.buttonBorder || { enabled: false, color: "#2A3C24" };
+  const mode = profile.backgroundMode === "gradient" ? "gradient" : "solid";
+  const animation = ["fade-top", "bounce", "fade-bottom"].includes(profile.elementAnimation) ? profile.elementAnimation : "none";
+  const bg = validHex(custom.background, "#CAD593");
+  const second = validHex(profile.gradientSecondColor, "#F2F5DF");
   const colorStyle = [
     `--profile-bg:${validHex(custom.background, "#CAD593")}`,
     `--profile-text:${validHex(custom.text, "#2A3C24")}`,
@@ -875,14 +885,14 @@ function publicProfileMarkup(page = { profile: state.profile, links: state.links
     `--button-shadow:${buttonShadowValue(profile.buttonShadow)}`,
     `--title-font:${fontCssValue(profile.titleFont, profile)}`,
     `--body-font:${fontCssValue(profile.bodyFont, profile)}`,
-    `background:${validHex(custom.background, "#CAD593")}`,
+    `background:${mode === "gradient" ? `linear-gradient(180deg, ${bg} 0%, ${second} 100%)` : bg}`,
   ].join(";");
   const customFontStyle = profile.customFonts.length
     ? `<style>${profile.customFonts.filter((font) => safeFontData(font.dataUrl)).map((font) => `@font-face{font-family:"${customFontFamily(font.id)}";src:url("${safeFontData(font.dataUrl)}")}`).join("")}</style>`
     : "";
   return `
     ${customFontStyle}
-    <div class="profile-canvas bg-custom buttons-${escapeHtml(profile.buttonStyle)}" style="${escapeHtml(colorStyle)}">
+    <div class="profile-canvas bg-custom profile-motion-${animation} buttons-${escapeHtml(profile.buttonStyle)}" style="${escapeHtml(colorStyle)}">
       <div class="profile-inner">
         ${avatarMarkup("public-avatar", profile)}
         <h1 class="public-name">${escapeHtml(profile.name || "Seu nome")}</h1>
@@ -1083,6 +1093,28 @@ function appearancePanel() {
           </div>
         `).join("")}
       </div>
+      <div class="linkki-personalize-extra">
+        <strong>Tipo de fundo</strong>
+        <div class="linkki-setting-options" role="group" aria-label="Tipo de fundo">
+          <button type="button" class="choice ${state.profile.backgroundMode !== "gradient" ? "is-active" : ""}" data-background-mode="solid">Cor sólida</button>
+          <button type="button" class="choice ${state.profile.backgroundMode === "gradient" ? "is-active" : ""}" data-background-mode="gradient">Gradiente</button>
+        </div>
+        ${state.profile.backgroundMode === "gradient" ? `<div class="direct-color-row linkki-gradient-row">
+          <div class="direct-color-label"><strong>Segunda cor</strong><span>Degradê vertical, de cima para baixo</span></div>
+          <label class="direct-color-control">
+            <input type="color" data-gradient-picker value="${validHex(state.profile.gradientSecondColor, "#F2F5DF")}" aria-label="Segunda cor do gradiente" />
+            <input class="hex-input" data-gradient-field value="${escapeHtml(state.profile.gradientSecondColor || "#F2F5DF")}" maxlength="7" aria-label="Código hexadecimal da segunda cor" />
+          </label>
+        </div>` : ""}
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="card-title"><h2>Animação dos elementos</h2></div>
+      <p class="linkki-setting-description">Escolha como os elementos entram quando alguém abre sua página.</p>
+      <div class="linkki-setting-options linkki-animation-options">
+        ${[["none","Sem animação"],["fade-top","Fade-in de cima"],["bounce","Pop-up Bounce"],["fade-bottom","Fade-in de baixo"]].map(([value,label]) => `<button type="button" class="choice ${((state.profile.elementAnimation || "none") === value) ? "is-active" : ""}" data-element-animation="${value}">${label}</button>`).join("")}
+      </div>
     </section>
 
     <section class="card">
@@ -1166,6 +1198,7 @@ function templatePreviewMarkup(item) {
   const shadow = appearance.buttonShadow || { enabled: false, distance: 0, blur: 0, opacity: 0, angle: 90 };
   const style = [
     `--template-bg:${validHex(colors.background, "#CAD593")}`,
+    `background:${appearance.backgroundMode === "gradient" ? `linear-gradient(180deg, ${validHex(colors.background, "#CAD593")}, ${validHex(appearance.gradientSecondColor, "#F2F5DF")})` : validHex(colors.background, "#CAD593")}`,
     `--template-text:${validHex(colors.text, "#2A3C24")}`,
     `--template-button:${validHex(colors.buttonBackground, "#2A3C24")}`,
     `--template-button-text:${validHex(colors.buttonText, "#CAD593")}`,
@@ -1909,6 +1942,9 @@ function bindEvents() {
       state.profile.username = page.username;
       state.profile.published = page.active;
       state.profile.customColors = appearance.customColors;
+      state.profile.backgroundMode = appearance.backgroundMode || "solid";
+      state.profile.gradientSecondColor = appearance.gradientSecondColor || "#F2F5DF";
+      state.profile.elementAnimation = appearance.elementAnimation || "none";
       state.profile.buttonStyle = appearance.buttonStyle;
       state.profile.buttonBorder = appearance.buttonBorder;
       state.profile.buttonShadow = appearance.buttonShadow;
@@ -1965,6 +2001,9 @@ function bindEvents() {
       if (!template) return;
       const appearance = JSON.parse(JSON.stringify(template.appearance));
       state.profile.customColors = appearance.customColors;
+      state.profile.backgroundMode = appearance.backgroundMode || "solid";
+      state.profile.gradientSecondColor = appearance.gradientSecondColor || "#F2F5DF";
+      state.profile.elementAnimation = appearance.elementAnimation || "none";
       state.profile.buttonStyle = appearance.buttonStyle;
       state.profile.buttonBorder = appearance.buttonBorder;
       state.profile.buttonShadow = appearance.buttonShadow;
@@ -2029,6 +2068,34 @@ function bindEvents() {
     button.addEventListener("click", () => {
       updateProfileField(button.dataset.choice, button.dataset.value);
     });
+  });
+
+  document.querySelectorAll("[data-background-mode]").forEach(button => button.addEventListener("click", () => {
+    state.profile.backgroundMode = button.dataset.backgroundMode;
+    saveState(); render();
+  }));
+  document.querySelectorAll("[data-element-animation]").forEach(button => button.addEventListener("click", () => {
+    state.profile.elementAnimation = button.dataset.elementAnimation;
+    saveState(); render();
+  }));
+  document.querySelector("[data-gradient-picker]")?.addEventListener("input", event => {
+    state.profile.gradientSecondColor = event.target.value.toUpperCase();
+    const field = document.querySelector("[data-gradient-field]");
+    if (field) field.value = state.profile.gradientSecondColor;
+    saveState(); syncLivePreview();
+  });
+  document.querySelector("[data-gradient-field]")?.addEventListener("input", event => {
+    const raw = event.target.value;
+    const value = (raw.startsWith("#") ? raw : `#${raw}`).toUpperCase();
+    if (/^#[0-9A-F]{6}$/.test(value)) {
+      state.profile.gradientSecondColor = value;
+      const picker = document.querySelector("[data-gradient-picker]");
+      if (picker) picker.value = value;
+      saveState(); syncLivePreview();
+    }
+  });
+  document.querySelector("[data-gradient-field]")?.addEventListener("change", event => {
+    event.target.value = validHex(state.profile.gradientSecondColor, "#F2F5DF");
   });
 
   document.querySelectorAll("[data-color-picker]").forEach((picker) => {
