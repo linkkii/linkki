@@ -1853,13 +1853,25 @@ function bindEvents() {
 
   document.querySelectorAll("[data-app-section]").forEach((button) => {
     button.addEventListener("click", () => {
-      state.activeSection = button.dataset.appSection;
-      if (state.activeSection === "community" && !["discover", "mine", "publish"].includes(state.communityView)) {
-        state.communityView = "discover";
+      const nextSection = button.dataset.appSection;
+      const fromDrawer = Boolean(button.closest(".app-drawer"));
+      const navigate = () => {
+        state.activeSection = nextSection;
+        if (state.activeSection === "community" && !["discover", "mine", "publish"].includes(state.communityView)) {
+          state.communityView = "discover";
+        }
+        menuOpen = false;
+        saveState();
+        render();
+      };
+      if (fromDrawer && menuOpen) {
+        // Deixa o menu terminar a animação de saída antes de trocar a tela.
+        setMenuOpen(false);
+        const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+        window.setTimeout(navigate, reducedMotion ? 0 : 320);
+      } else {
+        navigate();
       }
-      menuOpen = false;
-      saveState();
-      render();
     });
   });
 
