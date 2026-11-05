@@ -516,9 +516,45 @@ function saveState() {
   }
 }
 
+// Atualiza a prévia sem recriar os elementos que já existem.
+// Assim as animações não reiniciam a cada alteração no editor.
+function patchPreviewNode(current, next) {
+  if (!current || !next || current.nodeType !== next.nodeType ||
+      (current.nodeType === 1 && current.tagName !== next.tagName)) {
+    current?.replaceWith(next.cloneNode(true));
+    return;
+  }
+  if (current.nodeType === Node.TEXT_NODE) {
+    if (current.nodeValue !== next.nodeValue) current.nodeValue = next.nodeValue;
+    return;
+  }
+  if (current.nodeType !== Node.ELEMENT_NODE) return;
+  for (const attribute of Array.from(current.attributes)) {
+    if (!next.hasAttribute(attribute.name)) current.removeAttribute(attribute.name);
+  }
+  for (const attribute of Array.from(next.attributes)) {
+    if (current.getAttribute(attribute.name) !== attribute.value)
+      current.setAttribute(attribute.name, attribute.value);
+  }
+  const oldChildren = Array.from(current.childNodes);
+  const newChildren = Array.from(next.childNodes);
+  for (let i = 0; i < newChildren.length; i++) {
+    if (!oldChildren[i]) current.appendChild(newChildren[i].cloneNode(true));
+    else patchPreviewNode(oldChildren[i], newChildren[i]);
+  }
+  for (let i = oldChildren.length - 1; i >= newChildren.length; i--) oldChildren[i].remove();
+}
+
 function syncLivePreview() {
   const preview = document.querySelector(".preview-screen");
-  if (preview) preview.innerHTML = publicProfileMarkup();
+  if (preview) {
+    const next = document.createElement("div");
+    next.innerHTML = publicProfileMarkup();
+    const currentCanvas = preview.firstElementChild;
+    const nextCanvas = next.firstElementChild;
+    if (currentCanvas && nextCanvas) patchPreviewNode(currentCanvas, nextCanvas);
+    else preview.replaceChildren(...Array.from(next.childNodes));
+  }
 
   const sidebarName = document.querySelector(".sidebar-profile strong");
   const sidebarUrl = document.querySelector(".sidebar-profile span");
@@ -1591,9 +1627,15 @@ function publicNotFound(message) {
   return `<main class="public-page"><div class="profile-canvas bg-light"><div class="profile-inner"><div class="public-avatar">木</div><h1 class="public-name">${escapeHtml(message)}</h1><a class="button button--primary" href="#home">Voltar ao Linkki</a></div></div></main>`;
 }
 
+let lastRenderedRoute = null;
 function render() {
   const app = document.querySelector("#app");
   const route = location.hash.replace(/^#\/?/, "") || "home";
+  const sameRoute = lastRenderedRoute === route;
+  const previousScroll = window.scrollY;
+  const oldPreview = sameRoute ? app.querySelector(".preview-screen") : null;
+  // Guarda a prévia existente durante a reconstrução do editor.
+  if (oldPreview) oldPreview.remove();
   if (route === "signup") {
     app.innerHTML = state.account.loggedIn ? editorPage() : signupPage();
   } else if (route === "login") {
@@ -1610,9 +1652,19 @@ function render() {
   } else {
     app.innerHTML = landingPage();
   }
+  if (oldPreview) {
+    const newPreview = app.querySelector(".preview-screen");
+    if (newPreview) {
+      newPreview.replaceWith(oldPreview);
+      syncLivePreview();
+    }
+  }
   bindEvents();
   initializeTurnstile();
-  window.scrollTo({ top: 0, behavior: "instant" });
+  lastRenderedRoute = route;
+  // Só volta ao topo ao trocar de página; ajustes na mesma tela preservam a posição.
+  if (sameRoute) window.scrollTo({ top: previousScroll, behavior: "instant" });
+  else window.scrollTo({ top: 0, behavior: "instant" });
 }
 
 function refreshEditorViews() {
