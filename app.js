@@ -1,4 +1,33 @@
 const STORAGE_KEY = "linkki-prototype-v1";
+const LINKKI_TURNSTILE_SITE_KEY = "0x4AAAAAAF0ZSAOsq3_DSjAb";
+const linkkiTurnstileWidgets = new WeakMap();
+function initializeTurnstile() {
+  if (!window.turnstile) return;
+  document.querySelectorAll('[data-linkki-turnstile]').forEach((el) => {
+    if (linkkiTurnstileWidgets.has(el)) return;
+    const widgetId = window.turnstile.render(el, {
+      sitekey: LINKKI_TURNSTILE_SITE_KEY,
+      theme: 'auto',
+      'expired-callback': () => { const form = el.closest('form'); if (form) setFormError(form, 'Verificação expirada. Confirme novamente.'); }
+    });
+    linkkiTurnstileWidgets.set(el, widgetId);
+  });
+}
+function captchaTokenFor(form) {
+  const el = form?.querySelector('[data-linkki-turnstile]');
+  if (!el || !window.turnstile) throw new Error('A verificação de segurança ainda está carregando. Aguarde um instante.');
+  const id = linkkiTurnstileWidgets.get(el);
+  const token = id === undefined ? '' : window.turnstile.getResponse(id);
+  if (!token) throw new Error('Conclua a verificação de segurança antes de continuar.');
+  return token;
+}
+function resetCaptcha(form) {
+  const el = form?.querySelector('[data-linkki-turnstile]');
+  const id = el && linkkiTurnstileWidgets.get(el);
+  if (id !== undefined && window.turnstile) window.turnstile.reset(id);
+}
+window.linkkiTurnstileReady = initializeTurnstile;
+
 // Configure URL e chave publica em supabase-config.js (nunca use service_role).
 const authClient = (window.supabase && window.LINKKI_SUPABASE_URL && window.LINKKI_SUPABASE_ANON_KEY && !window.LINKKI_SUPABASE_URL.includes('COLE_'))
   ? window.supabase.createClient(window.LINKKI_SUPABASE_URL, window.LINKKI_SUPABASE_ANON_KEY)
@@ -734,6 +763,7 @@ function signupPage() {
             </button>
           `).join("")}
         </div>
+        <div class="linkki-captcha" data-linkki-turnstile></div>
         <p class="form-error" role="alert"></p>
         <div class="auth-form-actions">
           <button class="button button--ghost" type="button" data-action="signup-back">Voltar</button>
@@ -757,6 +787,7 @@ function signupPage() {
 
         <p class="form-error" role="alert"></p>
         <button class="button button--primary auth-submit" type="submit">Verificar e criar página</button>
+        <div class="linkki-captcha" data-linkki-turnstile></div>
         <button class="text-button" type="button" data-action="resend-code">Reenviar código</button>
         <button class="text-button" type="button" data-action="signup-back">Alterar dados</button>
       </form>
@@ -784,6 +815,7 @@ function loginPage() {
           <label class="field"><span class="field-label">Nova senha</span><input class="input" name="newPassword" type="password" autocomplete="new-password" minlength="8" required /></label>
           <label class="field"><span class="field-label">Confirme a nova senha</span><input class="input" name="newPasswordConfirm" type="password" autocomplete="new-password" minlength="8" required /></label>` : ""}
         ` : `<label class="field"><span class="field-label">Senha</span><input class="input" name="loginPassword" type="password" autocomplete="current-password" required /></label>`}
+        <div class="linkki-captcha" data-linkki-turnstile></div>
         <p class="form-error" role="alert"></p>
         <button class="button button--primary auth-submit" type="submit">${state.passwordResetMode ? (state.loginCodeSent ? "Salvar senha e entrar" : "Enviar código para definir senha") : "Entrar"}</button>
       </form>
@@ -1525,6 +1557,7 @@ function render() {
     app.innerHTML = landingPage();
   }
   bindEvents();
+  initializeTurnstile();
   window.scrollTo({ top: 0, behavior: "instant" });
 }
 
@@ -1649,17 +1682,18 @@ function bindEvents() {
     const button = categoryForm.querySelector('[type="submit"]');
     button.disabled = true;
     try {
+      const captchaToken = captchaTokenFor(categoryForm);
       const { error } = await authClient.auth.signUp({
         email: state.account.email,
         password: pendingSignupPassword,
-        options: { data: {
+        options: { captchaToken, data: {
           first_name: state.account.firstName, last_name: state.account.lastName,
           username: state.account.username, category: state.account.category
         } }
       });
       if (error) throw error;
       state.signupStep = 3; saveState(); render(); showToast("Código enviado para seu e-mail.");
-    } catch (error) { setFormError(categoryForm, authError(error)); }
+    } catch (error) { setFormError(categoryForm, authError(error)); resetCaptcha(categoryForm); }
     finally { button.disabled = false; }
   });
 
@@ -1675,11 +1709,12 @@ function bindEvents() {
     if (!requireAuthClient(verifyForm)) return;
     const button = event.currentTarget; button.disabled = true;
     try {
-      const { error } = await authClient.auth.resend({ type: "signup", email: state.account.email });
+      const captchaToken = captchaTokenFor(verifyForm);
+      const { error } = await authClient.auth.resend({ type: "signup", email: state.account.email, options: { captchaToken } });
       if (error) throw error;
       showToast("Novo código enviado.");
     } catch (error) { setFormError(verifyForm, authError(error)); }
-    finally { button.disabled = false; }
+    finally { resetCaptcha(verifyForm); button.disabled = false; }
   });
 
   const verifyForm = document.querySelector('[data-form="signup-verify"]');
@@ -1719,7 +1754,8 @@ function bindEvents() {
     const button = loginForm.querySelector('[type="submit"]'); button.disabled = true;
     try {
       if (state.passwordResetMode && !state.loginCodeSent) {
-        const { error } = await authClient.auth.signInWithOtp({ email, options: { shouldCreateUser: false } });
+        const captchaToken = captchaTokenFor(loginForm);
+        const { error } = await authClient.auth.signInWithOtp({ email, options: { shouldCreateUser: false, captchaToken } });
         if (error) throw error;
         state.account.email = email; state.loginCodeSent = true; render();
         showToast("Confira seu e-mail para definir a senha.");
@@ -1738,7 +1774,8 @@ function bindEvents() {
         if (updated.error) throw updated.error;
         result = verified.data;
       } else {
-        const signed = await authClient.auth.signInWithPassword({ email, password: String(data.get("loginPassword") || "") });
+        const captchaToken = captchaTokenFor(loginForm);
+        const signed = await authClient.auth.signInWithPassword({ email, password: String(data.get("loginPassword") || ""), options: { captchaToken } });
         if (signed.error) throw signed.error;
         result = signed.data;
       }
@@ -1754,7 +1791,7 @@ function bindEvents() {
       state.profile.username = state.account.username || state.profile.username;
       await initializeCloudForUser(result.user);
       saveState(); location.hash = "#editor"; render();
-    } catch (error) { setFormError(loginForm, authError(error)); }
+    } catch (error) { setFormError(loginForm, authError(error)); resetCaptcha(loginForm); }
     finally { button.disabled = false; }
   });
 
