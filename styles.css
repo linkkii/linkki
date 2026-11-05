@@ -3601,3 +3601,10 @@ button.template-stat {
   .linkki-background-options { justify-content: flex-start; gap: 16px; width: 100%; }
   .linkki-background-swatches .direct-color-control { width: min(26vw, 125px); flex-basis: min(26vw, 125px); }
 }
+
+/* Personalização opcional da borda da foto de perfil */
+.profile-avatar.linkki-avatar-border,
+.public-avatar.linkki-avatar-border {
+  border: var(--avatar-border-width, 0px) solid var(--avatar-border-color, #2A3C24);
+  box-sizing: border-box;
+}

@@ -133,6 +133,7 @@ const defaultState = {
     username: "marina",
     bio: "Criatividade, rotina e tudo que inspira meu caminho.",
     avatar: "",
+    avatarBorder: { enabled: false, color: "#2A3C24" },
     background: "custom",
     backgroundMode: "solid",
     gradientSecondColor: "#F2F5DF",
@@ -246,6 +247,10 @@ function loadState() {
       customColors: {
         ...base.profile.customColors,
         ...(parsed.profile?.customColors || {}),
+      },
+      avatarBorder: {
+        ...base.profile.avatarBorder,
+        ...(parsed.profile?.avatarBorder || {}),
       },
       buttonBorder: {
         ...base.profile.buttonBorder,
@@ -367,7 +372,7 @@ function reportCloudError(error) {
 // Apenas os campos destinados à página pública são enviados para esta tabela.
 function publicPageSnapshot() {
   const profile = structuredClone(state.profile);
-  const allowed = ['name','username','bio','avatar','customColors','backgroundMode','gradientSecondColor','elementAnimation','buttonStyle','buttonBorder','buttonShadow','titleFont','bodyFont','customFonts'];
+  const allowed = ['name','username','bio','avatar','avatarBorder','customColors','backgroundMode','gradientSecondColor','elementAnimation','buttonStyle','buttonBorder','buttonShadow','titleFont','bodyFont','customFonts'];
   const safeProfile = Object.fromEntries(allowed.filter(k => Object.hasOwn(profile,k)).map(k => [k,profile[k]]));
   return { profile: safeProfile, links: state.links.filter(link => link.visible).map(link => ({ id: link.id, title: link.title, url: link.url, visible: true })) };
 }
@@ -382,7 +387,7 @@ async function syncPublicPage(owner, snapshot) {
     return;
   }
   const { error } = await authClient.from('linkki_public_pages').upsert({
-    user_id: owner, username, public_data: { profile: Object.fromEntries(['name','username','bio','avatar','customColors','backgroundMode','gradientSecondColor','elementAnimation','buttonStyle','buttonBorder','buttonShadow','titleFont','bodyFont','customFonts'].filter(k => Object.hasOwn(snapshot.profile,k)).map(k => [k,snapshot.profile[k]])), links: snapshot.links.filter(link => link.visible).map(link => ({ id: link.id, title: link.title, url: link.url, visible: true })) }, updated_at: new Date().toISOString()
+    user_id: owner, username, public_data: { profile: Object.fromEntries(['name','username','bio','avatar','avatarBorder','customColors','backgroundMode','gradientSecondColor','elementAnimation','buttonStyle','buttonBorder','buttonShadow','titleFont','bodyFont','customFonts'].filter(k => Object.hasOwn(snapshot.profile,k)).map(k => [k,snapshot.profile[k]])), links: snapshot.links.filter(link => link.visible).map(link => ({ id: link.id, title: link.title, url: link.url, visible: true })) }, updated_at: new Date().toISOString()
   }, { onConflict: 'user_id' });
   if (error) throw error;
 }
@@ -390,7 +395,7 @@ async function syncPublicPage(owner, snapshot) {
 function publicPublishPayload() {
   const snapshot = editableSnapshot();
   const profile = snapshot.profile;
-  const allowed = ['name','username','bio','avatar','customColors','backgroundMode','gradientSecondColor','elementAnimation','buttonStyle','buttonBorder','buttonShadow','titleFont','bodyFont','customFonts'];
+  const allowed = ['name','username','bio','avatar','avatarBorder','customColors','backgroundMode','gradientSecondColor','elementAnimation','buttonStyle','buttonBorder','buttonShadow','titleFont','bodyFont','customFonts'];
   return {
     profile: Object.fromEntries(allowed.filter(k => Object.hasOwn(profile,k)).map(k => [k,profile[k]])),
     links: snapshot.links.filter(link => link.visible).map(link => ({ id: link.id, title: link.title, url: link.url, visible: true }))
@@ -832,10 +837,12 @@ function loginPage() {
 }
 
 function avatarMarkup(className = "profile-avatar", profile = state.profile) {
+  const avatarBorder = profile.avatarBorder || { enabled: false, color: "#2A3C24" };
+  const borderStyle = `style="--avatar-border-width:${avatarBorder.enabled ? "3px" : "0px"};--avatar-border-color:${validHex(avatarBorder.color, "#2A3C24")}"`;
   if (safeImageSrc(profile.avatar)) {
-    return `<div class="${className}"><img src="${escapeHtml(safeImageSrc(profile.avatar))}" alt="Foto de ${escapeHtml(profile.name)}" /></div>`;
+    return `<div class="${className} linkki-avatar-border" ${borderStyle}><img src="${escapeHtml(safeImageSrc(profile.avatar))}" alt="Foto de ${escapeHtml(profile.name)}" /></div>`;
   }
-  return `<div class="${className}" aria-label="Avatar de ${escapeHtml(profile.name)}">${escapeHtml(initials(profile.name))}</div>`;
+  return `<div class="${className} linkki-avatar-border" ${borderStyle} aria-label="Avatar de ${escapeHtml(profile.name)}">${escapeHtml(initials(profile.name))}</div>`;
 }
 
 function fontName(fontId) {
@@ -1110,6 +1117,17 @@ function appearancePanel() {
             </label>
           </div>
         `).join("")}
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="card-title"><h2>Foto de perfil</h2></div>
+      <div class="effect-block">
+        <div class="effect-heading">
+          <div><strong>Borda da foto</strong><span>Escolha se a foto de perfil terá contorno.</span></div>
+          <button class="switch ${state.profile.avatarBorder?.enabled ? "is-on" : ""}" data-action="toggle-avatar-border" aria-label="${state.profile.avatarBorder?.enabled ? "Remover borda da foto" : "Adicionar borda à foto"}" aria-pressed="${Boolean(state.profile.avatarBorder?.enabled)}"></button>
+        </div>
+        ${state.profile.avatarBorder?.enabled ? `<div class="effect-content"><div class="direct-color-row compact"><div class="direct-color-label"><strong>Cor da borda</strong></div><label class="direct-color-control"><input type="color" data-avatar-border-picker value="${validHex(state.profile.avatarBorder?.color, "#2A3C24")}" aria-label="Cor da borda da foto" /><input class="hex-input" data-avatar-border-color value="${escapeHtml(state.profile.avatarBorder?.color || "#2A3C24")}" maxlength="7" aria-label="Código da cor da borda da foto" /></label></div></div>` : ""}
       </div>
     </section>
 
@@ -2155,6 +2173,30 @@ function bindEvents() {
       saveState();
       render();
     });
+  });
+
+  document.querySelector('[data-action="toggle-avatar-border"]')?.addEventListener("click", () => {
+    state.profile.avatarBorder = { ...{ enabled: false, color: "#2A3C24" }, ...state.profile.avatarBorder, enabled: !state.profile.avatarBorder?.enabled };
+    saveState();
+    render();
+  });
+  document.querySelector('[data-avatar-border-picker]')?.addEventListener("input", (event) => {
+    state.profile.avatarBorder.color = event.target.value.toUpperCase();
+    const input = document.querySelector('[data-avatar-border-color]');
+    if (input) input.value = state.profile.avatarBorder.color;
+    saveState();
+    syncLivePreview();
+  });
+  document.querySelector('[data-avatar-border-color]')?.addEventListener("change", (event) => {
+    const value = event.target.value.trim().toUpperCase();
+    if (!/^#[0-9A-F]{6}$/.test(value)) {
+      event.target.value = state.profile.avatarBorder.color;
+      showToast("Use uma cor hexadecimal com 6 caracteres.");
+      return;
+    }
+    state.profile.avatarBorder.color = value;
+    saveState();
+    render();
   });
 
   document.querySelector('[data-action="toggle-border"]')?.addEventListener("click", () => {
