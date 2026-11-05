@@ -9,7 +9,17 @@ function requireAuthClient(form) {
   if (error) error.textContent = 'Falta configurar a URL e a chave pública do Supabase em supabase-config.js.';
   return false;
 }
-function authError(error) { return error?.message || 'Não foi possível concluir. Tente novamente.'; }
+function authError(error) {
+  const message = String(error?.message || '');
+  if (/hook|username|nickname|already.*(use|taken)/i.test(message)) return 'Não foi possível cadastrar este nome de usuário. Volte e escolha outro.';
+  return message || 'Não foi possível concluir. Tente novamente.';
+}
+async function checkUsernameAvailability(username) {
+  if (!authClient) throw new Error('Não foi possível verificar o nome de usuário agora.');
+  const { data, error } = await authClient.rpc('linkki_username_available', { requested_username: username });
+  if (error) throw new Error('Não foi possível verificar o nome de usuário agora. Tente novamente.');
+  return data === true;
+}
 const fontPresets = {
   system: { name: "Moderna", css: "Inter, ui-sans-serif, system-ui, sans-serif" },
   serif: { name: "Editorial", css: "Georgia, 'Times New Roman', serif" },
@@ -604,6 +614,7 @@ function signupPage() {
             <span class="field-label">Nome de usuário</span>
             <div class="input-prefix"><span>linkki.com/</span><input name="username" autocomplete="username" required maxlength="30" value="${escapeHtml(state.account.username)}" placeholder="seunome" /></div>
             <small class="field-help">Use letras minúsculas, números, ponto, hífen ou underline.</small>
+            <small class="field-help" data-username-status role="status" aria-live="polite"></small>
           </label>
           <label class="field field--wide">
             <span class="field-label">E-mail</span>
@@ -1466,7 +1477,31 @@ function bindEvents() {
   };
 
   const detailsForm = document.querySelector('[data-form="signup-details"]');
-  detailsForm?.addEventListener("submit", (event) => {
+  const usernameField = detailsForm?.querySelector('[name="username"]');
+  const usernameStatus = detailsForm?.querySelector('[data-username-status]');
+  let usernameCheckSequence = 0;
+  async function checkUsernameInForm() {
+    const nickname = String(usernameField?.value || '').trim().toLowerCase();
+    const sequence = ++usernameCheckSequence;
+    if (!nickname) { if (usernameStatus) usernameStatus.textContent = ''; return false; }
+    if (!/^[a-z0-9._-]{3,30}$/.test(nickname)) {
+      if (usernameStatus) usernameStatus.textContent = 'Use de 3 a 30 caracteres: letras, números, ponto, hífen ou underline.';
+      return false;
+    }
+    if (usernameStatus) usernameStatus.textContent = 'Verificando disponibilidade...';
+    try {
+      const available = await checkUsernameAvailability(nickname);
+      if (sequence !== usernameCheckSequence || nickname !== String(usernameField?.value || '').trim().toLowerCase()) return false;
+      if (usernameStatus) usernameStatus.textContent = available ? 'Nome de usuário disponível ✓' : 'Esse nome de usuário já está em uso. Escolha outro.';
+      return available;
+    } catch (error) {
+      if (usernameStatus && sequence === usernameCheckSequence) usernameStatus.textContent = error.message;
+      return false;
+    }
+  }
+  usernameField?.addEventListener('blur', checkUsernameInForm);
+  usernameField?.addEventListener('input', () => { usernameCheckSequence++; if (usernameStatus) usernameStatus.textContent = ''; });
+  detailsForm?.addEventListener("submit", async (event) => {
     event.preventDefault();
     const data = new FormData(detailsForm);
     const firstName = String(data.get("firstName") || "").trim();
@@ -1488,6 +1523,15 @@ function bindEvents() {
       return;
     }
 
+    if (!requireAuthClient(detailsForm)) return;
+    const continueButton = detailsForm.querySelector('[type="submit"]');
+    continueButton.disabled = true;
+    const available = await checkUsernameInForm();
+    continueButton.disabled = false;
+    if (!available) {
+      setFormError(detailsForm, 'Escolha um nome de usuário disponível antes de continuar.');
+      return;
+    }
     state.account = { ...state.account, firstName, lastName, username, email };
     pendingSignupPassword = password;
     state.signupStep = 2;
