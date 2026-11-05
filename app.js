@@ -457,9 +457,19 @@ let toastTimer;
 let pendingFontTarget = "titleFont";
 let menuOpen = false;
 
+function refreshPublishButton() {
+  const button = document.querySelector('[data-action="publish"]');
+  if (!button || publishInProgress) return;
+  const published = Boolean(state.profile.published);
+  button.textContent = published ? (hasUnpublishedChanges() ? "Publicar alterações" : "Publicado") : "Publicar";
+  button.classList.toggle("button--accent", published);
+  button.classList.toggle("button--primary", !published);
+}
+
 function saveState() {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
   queueCloudSave();
+  refreshPublishButton();
   const status = document.querySelector(".save-status");
   if (status) {
     status.textContent = cloudReady ? "Salvando..." : "Salvo neste navegador";
