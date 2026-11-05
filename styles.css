@@ -3514,3 +3514,44 @@ button.template-stat {
 @media (prefers-reduced-motion: reduce) {
   .workspace--section > .editor-panel--section { animation: none !important; }
 }
+
+
+/* Comunidade — entrada sequencial suave, de cima para baixo. */
+@keyframes linkki-community-fade-down {
+  from { opacity: 0; transform: translate3d(0, -18px, 0); }
+  to { opacity: 1; transform: translate3d(0, 0, 0); }
+}
+.editor-panel--community .community-panel-header,
+.editor-panel--community .community-nav,
+.editor-panel--community .community-hero,
+.editor-panel--community .community-section-title,
+.editor-panel--community .community-grid > *,
+.editor-panel--community .community-empty,
+.editor-panel--community .publish-info,
+.editor-panel--community .user-pages-grid > * {
+  animation: linkki-community-fade-down 620ms cubic-bezier(.22, 1, .36, 1) both;
+}
+.editor-panel--community .community-panel-header { animation-delay: 40ms; }
+.editor-panel--community .community-nav { animation-delay: 120ms; }
+.editor-panel--community .community-hero,
+.editor-panel--community .publish-info { animation-delay: 200ms; }
+.editor-panel--community .community-section-title { animation-delay: 280ms; }
+.editor-panel--community .community-grid > *,
+.editor-panel--community .user-pages-grid > * { animation-delay: 340ms; }
+.editor-panel--community .community-grid > :nth-child(2),
+.editor-panel--community .user-pages-grid > :nth-child(2) { animation-delay: 420ms; }
+.editor-panel--community .community-grid > :nth-child(3),
+.editor-panel--community .user-pages-grid > :nth-child(3) { animation-delay: 500ms; }
+.editor-panel--community .community-grid > :nth-child(n+4),
+.editor-panel--community .user-pages-grid > :nth-child(n+4) { animation-delay: 560ms; }
+.editor-panel--community .community-empty { animation-delay: 230ms; }
+@media (prefers-reduced-motion: reduce) {
+  .editor-panel--community .community-panel-header,
+  .editor-panel--community .community-nav,
+  .editor-panel--community .community-hero,
+  .editor-panel--community .community-section-title,
+  .editor-panel--community .community-grid > *,
+  .editor-panel--community .community-empty,
+  .editor-panel--community .publish-info,
+  .editor-panel--community .user-pages-grid > * { animation: none !important; }
+}
