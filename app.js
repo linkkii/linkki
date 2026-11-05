@@ -454,7 +454,14 @@ async function initializeCloudForUser(user) {
   state.account.email = user.email || state.account.email;
   state.account.firstName = user.user_metadata?.first_name || state.account.firstName;
   state.account.lastName = user.user_metadata?.last_name || state.account.lastName;
-  state.account.username = user.user_metadata?.username || state.account.username;
+  // A tabela de nicknames é a fonte oficial; metadados do Auth podem estar desatualizados.
+  const { data: officialNickname, error: nicknameLoadError } = await authClient.from('linkki_usernames')
+    .select('username').eq('user_id', user.id).maybeSingle();
+  if (nicknameLoadError) console.warn('Linkki: nickname oficial indisponível', nicknameLoadError);
+  const currentNickname = officialNickname?.username || user.user_metadata?.username || state.account.username;
+  state.account.username = currentNickname;
+  state.profile.username = currentNickname;
+  state.userPages.forEach(page => { if (page.id === 'page-principal') page.username = currentNickname; });
   state.account.verified = true;
   state.account.loggedIn = true;
   cloudReady = true;
@@ -1005,10 +1012,11 @@ function contentPanel() {
           <span class="field-label">Nome</span>
           <input class="input" name="profile-name" maxlength="50" value="${escapeHtml(state.profile.name)}" />
         </label>
-        <label class="field">
+        <div class="field">
           <span class="field-label">Nome de usuário</span>
-          <input class="input" name="profile-username" maxlength="30" value="${escapeHtml(state.profile.username)}" />
-        </label>
+          <div class="input" style="display:flex;align-items:center;opacity:.75">@${escapeHtml(state.account.username || state.profile.username)}</div>
+          <small class="field-help">Para alterar, acesse Minha conta.</small>
+        </div>
         <label class="field field--wide">
           <span class="field-label">Bio <small>${state.profile.bio.length}/160</small></span>
           <textarea class="textarea" name="profile-bio" maxlength="160">${escapeHtml(state.profile.bio)}</textarea>
@@ -1487,6 +1495,13 @@ function accountPanel() {
             <div><span>Nome de usuário</span><strong>@${escapeHtml(state.account.username || state.profile.username)}</strong></div>
             <div><span>Tipo de perfil</span><strong>${escapeHtml(category)}</strong></div>
           </div>
+          <form data-form="change-username" style="margin-top:22px;display:grid;gap:10px">
+            <label class="field"><span class="field-label">Alterar nome de usuário</span>
+              <input class="input" name="newUsername" autocomplete="off" spellcheck="false" maxlength="30" value="${escapeHtml(state.account.username || state.profile.username)}" />
+            </label>
+            <small class="field-help" data-account-username-status role="status" aria-live="polite">Seu link público também será atualizado.</small>
+            <button class="button button--primary button--small" type="submit" style="justify-self:start">Salvar novo nome de usuário</button>
+          </form>
         </section>
         <section class="card account-card">
           <div class="card-title"><h2>Segurança</h2></div>
@@ -1711,6 +1726,77 @@ function bindEvents() {
     const error = form?.querySelector(".form-error");
     if (error) error.textContent = message;
   };
+
+  const nicknameForm = document.querySelector('[data-form="change-username"]');
+  const nicknameInput = nicknameForm?.querySelector('[name="newUsername"]');
+  const nicknameStatus = nicknameForm?.querySelector('[data-account-username-status]');
+  let nicknameSequence = 0;
+  const nicknamePattern = /^[a-z0-9._-]{3,30}$/;
+  async function validateNewNickname() {
+    if (!nicknameInput) return false;
+    const candidate = nicknameInput.value.trim().toLowerCase();
+    const sequence = ++nicknameSequence;
+    if (!nicknamePattern.test(candidate)) {
+      nicknameStatus.textContent = 'Use de 3 a 30 caracteres: letras, números, ponto, hífen ou underline.';
+      return false;
+    }
+    if (candidate === state.account.username.toLowerCase()) {
+      nicknameStatus.textContent = 'Esse já é seu nome de usuário.';
+      return false;
+    }
+    nicknameStatus.textContent = 'Verificando disponibilidade...';
+    try {
+      const available = await checkUsernameAvailability(candidate);
+      if (sequence !== nicknameSequence || candidate !== nicknameInput.value.trim().toLowerCase()) return false;
+      nicknameStatus.textContent = available ? 'Nome de usuário disponível ✓' : 'Esse nome de usuário não está disponível.';
+      return available;
+    } catch (error) {
+      if (sequence === nicknameSequence) nicknameStatus.textContent = error.message;
+      return false;
+    }
+  }
+  nicknameInput?.addEventListener('input', () => {
+    nicknameSequence++;
+    nicknameStatus.textContent = '';
+  });
+  nicknameInput?.addEventListener('blur', validateNewNickname);
+  nicknameForm?.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    if (!cloudReady || !cloudUserId || !authClient) {
+      nicknameStatus.textContent = 'Aguarde sua conta conectar.';
+      return;
+    }
+    const candidate = nicknameInput.value.trim().toLowerCase();
+    const submit = nicknameForm.querySelector('[type="submit"]');
+    submit.disabled = true;
+    try {
+      if (!(await validateNewNickname())) return;
+      // Uma única transação no banco muda a reserva e a página pública.
+      const { data, error } = await authClient.rpc('linkki_change_username', { new_username: candidate });
+      if (error) {
+        if (/dispon[ií]vel|unique|duplicate|23505|already|taken/i.test(error.message || ''))
+          throw new Error('Esse nome de usuário não está disponível.');
+        throw error;
+      }
+      if (data !== candidate) throw new Error('Não foi possível confirmar a alteração.');
+      state.account.username = candidate;
+      state.profile.username = candidate;
+      state.userPages.forEach(page => { if (page.id === 'page-principal') page.username = candidate; });
+      // O conteúdo publicado já foi atualizado na transação.
+      if (publishedFingerprint) {
+        const published = JSON.parse(publishedFingerprint);
+        if (published.profile) published.profile.username = candidate;
+        publishedFingerprint = JSON.stringify(published);
+      }
+      saveState();
+      render();
+      showToast('Nome de usuário e link atualizados!');
+    } catch (error) {
+      console.error('Linkki: erro ao alterar nickname', error);
+      nicknameStatus.textContent = error.message === 'Esse nome de usuário não está disponível.'
+        ? error.message : 'Não foi possível alterar agora. Tente novamente.';
+    } finally { submit.disabled = false; }
+  });
 
   const detailsForm = document.querySelector('[data-form="signup-details"]');
   const usernameField = detailsForm?.querySelector('[name="username"]');
@@ -2357,7 +2443,6 @@ function bindEvents() {
   });
 
   const nameInput = document.querySelector('[name="profile-name"]');
-  const usernameInput = document.querySelector('[name="profile-username"]');
   const bioInput = document.querySelector('[name="profile-bio"]');
 
   nameInput?.addEventListener("input", (event) => {
@@ -2368,20 +2453,6 @@ function bindEvents() {
   nameInput?.addEventListener("change", (event) => {
     state.profile.name = event.target.value.trim() || "Seu nome";
     event.target.value = state.profile.name;
-    saveState();
-    syncLivePreview();
-  });
-
-  usernameInput?.addEventListener("input", (event) => {
-    const clean = event.target.value.toLowerCase().replace(/[^a-z0-9._-]/g, "").slice(0, 30);
-    event.target.value = clean;
-    state.profile.username = clean;
-    saveState();
-    syncLivePreview();
-  });
-  usernameInput?.addEventListener("change", (event) => {
-    state.profile.username = event.target.value || "usuario";
-    event.target.value = state.profile.username;
     saveState();
     syncLivePreview();
   });
