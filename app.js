@@ -285,6 +285,8 @@ let cloudSaveChain = Promise.resolve();
 let cloudRevision = 0;
 let cloudReady = false;
 let cloudErrorShown = false;
+let publishedFingerprint = null;
+let publishInProgress = false;
 
 function editableSnapshot() {
   return {
@@ -350,6 +352,19 @@ async function syncPublicPage(owner, snapshot) {
   if (error) throw error;
 }
 
+function publicPublishPayload() {
+  const snapshot = editableSnapshot();
+  const profile = snapshot.profile;
+  const allowed = ['name','username','bio','avatar','customColors','buttonStyle','buttonBorder','buttonShadow','titleFont','bodyFont','customFonts'];
+  return {
+    profile: Object.fromEntries(allowed.filter(k => Object.hasOwn(profile,k)).map(k => [k,profile[k]])),
+    links: snapshot.links.filter(link => link.visible).map(link => ({ id: link.id, title: link.title, url: link.url, visible: true }))
+  };
+}
+function hasUnpublishedChanges() {
+  return Boolean(state.profile.published && publishedFingerprint !== JSON.stringify(publicPublishPayload()));
+}
+
 function queueCloudSave() {
   if (!cloudReady || !cloudUserId || !authClient) return;
   const owner = cloudUserId;
@@ -363,7 +378,6 @@ function queueCloudSave() {
         user_id: owner, data: payload, updated_at: new Date().toISOString()
       }, { onConflict: 'user_id' });
       if (error) throw error;
-      await syncPublicPage(owner, payload);
       cloudErrorShown = false;
       const status = document.querySelector('.save-status');
       if (status && owner === cloudUserId) status.textContent = 'Salvo na nuvem';
@@ -404,6 +418,17 @@ async function initializeCloudForUser(user) {
   state.account.verified = true;
   state.account.loggedIn = true;
   cloudReady = true;
+  publishedFingerprint = null;
+  try {
+    const { data: publishedPage } = await authClient.from('linkki_public_pages')
+      .select('public_data').eq('user_id', user.id).maybeSingle();
+    if (publishedPage?.public_data) {
+      publishedFingerprint = JSON.stringify(publishedPage.public_data);
+      state.profile.published = true;
+    } else {
+      state.profile.published = false;
+    }
+  } catch (error) { console.warn('Linkki: estado da publicação indisponível', error); }
   localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
   if (!data?.data) queueCloudSave();
 }
@@ -1392,9 +1417,9 @@ function editorPage() {
         </div>
         <div class="topbar-actions">
           <span class="save-status">Salvo neste navegador</span>
-          <a class="button button--ghost button--small" href="#public">Ver página</a>
+          <a class="button button--ghost button--small" href="#public">Prévia da página</a>
           <button class="button ${state.profile.published ? "button--accent" : "button--primary"} button--small" data-action="publish">
-            ${state.profile.published ? "Publicado" : "Publicar"}
+            ${state.profile.published ? (hasUnpublishedChanges() ? "Publicar alterações" : "Publicado") : "Publicar"}
           </button>
         </div>
       </header>
@@ -1414,20 +1439,6 @@ function editorPage() {
 }
 
 function publicPage() {
-  if (!state.profile.published) {
-    return `
-      <main class="public-page">
-        <div class="profile-canvas bg-light">
-          <div class="profile-inner">
-            <div class="public-avatar">木</div>
-            <h1 class="public-name">Esta Linkki ainda não foi publicada.</h1>
-            <p class="public-bio">Volte ao editor e publique quando estiver tudo pronto.</p>
-            <a class="button button--primary" href="#editor">Voltar ao editor</a>
-          </div>
-        </div>
-      </main>
-    `;
-  }
   return `
     <main class="public-page">
       <div class="public-actions">
@@ -2162,11 +2173,41 @@ function bindEvents() {
     });
   });
 
-  document.querySelector('[data-action="publish"]')?.addEventListener("click", () => {
-    state.profile.published = !state.profile.published;
-    saveState();
-    render();
-    showToast(state.profile.published ? "Sua Linkki está publicada." : "Página despublicada.");
+  document.querySelector('[data-action="publish"]')?.addEventListener("click", async (event) => {
+    if (publishInProgress || !cloudReady || !cloudUserId || !authClient) {
+      showToast("Aguarde a conexão com sua conta para publicar.");
+      return;
+    }
+    const owner = cloudUserId;
+    const wasPublished = Boolean(state.profile.published);
+    if (wasPublished && !hasUnpublishedChanges()) {
+      showToast("Sua página já está publicada.");
+      return;
+    }
+    publishInProgress = true;
+    const button = event.currentTarget;
+    button.disabled = true;
+    button.textContent = 'Publicando...';
+    try {
+      const username = String(state.account.username || '').toLowerCase().trim();
+      if (!/^[a-z0-9_.-]{3,30}$/.test(username)) throw new Error('Nickname inválido');
+      const payload = publicPublishPayload();
+      const { error } = await authClient.from('linkki_public_pages').upsert({
+        user_id: owner, username, public_data: payload, updated_at: new Date().toISOString()
+      }, { onConflict: 'user_id' });
+      if (error) throw error;
+      if (owner !== cloudUserId) return;
+      publishedFingerprint = JSON.stringify(payload);
+      state.profile.published = true;
+      saveState();
+      render();
+      showToast(wasPublished ? 'Alterações publicadas!' : 'Sua Linkki está publicada!');
+    } catch (error) {
+      console.error('Linkki: erro ao publicar', error);
+      showToast('Não foi possível publicar. Tente novamente.');
+      button.disabled = false;
+      button.textContent = wasPublished ? 'Publicar alterações' : 'Publicar';
+    } finally { publishInProgress = false; }
   });
 
   document.querySelector('[data-action="share"]')?.addEventListener("click", async () => {
