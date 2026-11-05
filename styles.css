@@ -3584,3 +3584,20 @@ button.template-stat {
 @media (prefers-reduced-motion: reduce) {
   .profile-canvas[class*="profile-motion-"] .profile-inner > * { animation: none !important; }
 }
+
+/* Fundo: seletor lado a lado, conforme referência */
+.linkki-background-row { align-items: center; }
+.linkki-background-options { display: flex; align-items: stretch; justify-content: flex-end; gap: 22px; flex-wrap: wrap; }
+.linkki-background-option { display: flex; flex-direction: row; align-items: center; gap: 12px; cursor: pointer; min-width: 0; }
+.linkki-background-heading { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; }
+.linkki-background-heading strong { font-size: 12px; writing-mode: vertical-rl; transform: rotate(180deg); white-space: nowrap; }
+.linkki-background-heading input { accent-color: #9fc342; width: 19px; height: 19px; margin: 0; }
+.linkki-background-swatches { display: flex; gap: 9px; }
+.linkki-background-swatches .direct-color-control { width: 125px; flex: 0 0 125px; }
+.linkki-background-swatches input[type="color"] { width: 100%; }
+.linkki-background-swatches .hex-input { width: 100%; min-width: 0; }
+@media (max-width: 800px) {
+  .linkki-background-row { align-items: flex-start; flex-direction: column; }
+  .linkki-background-options { justify-content: flex-start; gap: 16px; width: 100%; }
+  .linkki-background-swatches .direct-color-control { width: min(26vw, 125px); flex-basis: min(26vw, 125px); }
+}

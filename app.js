@@ -1083,7 +1083,25 @@ function appearancePanel() {
     <section class="card">
       <div class="card-title"><h2>Cores</h2></div>
       <div class="direct-color-list">
-        ${colorFields.map(([field, label, description]) => `
+        ${colorFields.map(([field, label, description]) => field === "background" ? `
+          <div class="direct-color-row linkki-background-row">
+            <div class="direct-color-label"><strong>Fundo</strong><span>Cor da página</span></div>
+            <div class="linkki-background-options" role="group" aria-label="Tipo de fundo">
+              <label class="linkki-background-option linkki-background-option--gradient">
+                <span class="linkki-background-heading"><input type="radio" name="linkki-background-mode" value="gradient" data-background-radio ${state.profile.backgroundMode === "gradient" ? "checked" : ""} /><strong>Gradiente</strong></span>
+                <span class="linkki-background-swatches">
+                  <span class="direct-color-control"><input type="color" data-color-picker="background" value="${validHex(state.profile.customColors.background, "#CAD593")}" aria-label="Primeira cor do gradiente" /><input class="hex-input" data-color-field="background" value="${escapeHtml(state.profile.customColors.background)}" maxlength="7" aria-label="Código da primeira cor" /></span>
+                  <span class="direct-color-control"><input type="color" data-gradient-picker value="${validHex(state.profile.gradientSecondColor, "#F2F5DF")}" aria-label="Segunda cor do gradiente" /><input class="hex-input" data-gradient-field value="${escapeHtml(state.profile.gradientSecondColor || "#F2F5DF")}" maxlength="7" aria-label="Código da segunda cor" /></span>
+                </span>
+              </label>
+              <label class="linkki-background-option linkki-background-option--solid">
+                <span class="linkki-background-heading"><input type="radio" name="linkki-background-mode" value="solid" data-background-radio ${state.profile.backgroundMode !== "gradient" ? "checked" : ""} /><strong>Cor sólida</strong></span>
+                <span class="linkki-background-swatches">
+                  <span class="direct-color-control"><input type="color" data-solid-color-picker value="${validHex(state.profile.customColors.background, "#CAD593")}" aria-label="Cor sólida do fundo" /><input class="hex-input" data-solid-color-field value="${escapeHtml(state.profile.customColors.background)}" maxlength="7" aria-label="Código da cor sólida" /></span>
+                </span>
+              </label>
+            </div>
+          </div>` : `
           <div class="direct-color-row">
             <div class="direct-color-label"><strong>${label}</strong><span>${description}</span></div>
             <label class="direct-color-control">
@@ -1092,20 +1110,6 @@ function appearancePanel() {
             </label>
           </div>
         `).join("")}
-      </div>
-      <div class="linkki-personalize-extra">
-        <strong>Tipo de fundo</strong>
-        <div class="linkki-setting-options" role="group" aria-label="Tipo de fundo">
-          <button type="button" class="choice ${state.profile.backgroundMode !== "gradient" ? "is-active" : ""}" data-background-mode="solid">Cor sólida</button>
-          <button type="button" class="choice ${state.profile.backgroundMode === "gradient" ? "is-active" : ""}" data-background-mode="gradient">Gradiente</button>
-        </div>
-        ${state.profile.backgroundMode === "gradient" ? `<div class="direct-color-row linkki-gradient-row">
-          <div class="direct-color-label"><strong>Segunda cor</strong><span>Degradê vertical, de cima para baixo</span></div>
-          <label class="direct-color-control">
-            <input type="color" data-gradient-picker value="${validHex(state.profile.gradientSecondColor, "#F2F5DF")}" aria-label="Segunda cor do gradiente" />
-            <input class="hex-input" data-gradient-field value="${escapeHtml(state.profile.gradientSecondColor || "#F2F5DF")}" maxlength="7" aria-label="Código hexadecimal da segunda cor" />
-          </label>
-        </div>` : ""}
       </div>
     </section>
 
@@ -2070,10 +2074,31 @@ function bindEvents() {
     });
   });
 
-  document.querySelectorAll("[data-background-mode]").forEach(button => button.addEventListener("click", () => {
-    state.profile.backgroundMode = button.dataset.backgroundMode;
+  document.querySelectorAll("[data-background-radio]").forEach(radio => radio.addEventListener("change", () => {
+    if (!radio.checked) return;
+    state.profile.backgroundMode = radio.value;
     saveState(); render();
   }));
+  const syncBackgroundControls = () => {
+    const value = validHex(state.profile.customColors.background, "#CAD593");
+    document.querySelectorAll('[data-color-picker="background"], [data-solid-color-picker]').forEach(input => { input.value = value; });
+    document.querySelectorAll('[data-color-field="background"], [data-solid-color-field]').forEach(input => { input.value = value; });
+  };
+  document.querySelector('[data-solid-color-picker]')?.addEventListener('input', event => {
+    state.profile.customColors.background = event.target.value.toUpperCase();
+    syncBackgroundControls(); saveState(); syncLivePreview();
+  });
+  document.querySelector('[data-solid-color-field]')?.addEventListener('input', event => {
+    const raw = event.target.value;
+    const value = (raw.startsWith('#') ? raw : `#${raw}`).toUpperCase();
+    if (/^#[0-9A-F]{6}$/.test(value)) {
+      state.profile.customColors.background = value;
+      syncBackgroundControls(); saveState(); syncLivePreview();
+    }
+  });
+  document.querySelector('[data-solid-color-field]')?.addEventListener('change', event => {
+    event.target.value = validHex(state.profile.customColors.background, '#CAD593');
+  });
   document.querySelectorAll("[data-element-animation]").forEach(button => button.addEventListener("click", () => {
     state.profile.elementAnimation = button.dataset.elementAnimation;
     saveState(); render();
@@ -2104,6 +2129,7 @@ function bindEvents() {
       state.profile.customColors[field] = picker.value.toUpperCase();
       const codeInput = document.querySelector(`[data-color-field="${field}"]`);
       if (codeInput) codeInput.value = state.profile.customColors[field];
+      if (field === "background") syncBackgroundControls();
       saveState();
       syncLivePreview();
     });
