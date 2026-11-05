@@ -327,6 +327,29 @@ function reportCloudError(error) {
   }
 }
 
+// Apenas os campos destinados à página pública são enviados para esta tabela.
+function publicPageSnapshot() {
+  const profile = structuredClone(state.profile);
+  const allowed = ['name','username','bio','avatar','customColors','buttonStyle','buttonBorder','buttonShadow','titleFont','bodyFont','customFonts'];
+  const safeProfile = Object.fromEntries(allowed.filter(k => Object.hasOwn(profile,k)).map(k => [k,profile[k]]));
+  return { profile: safeProfile, links: state.links.filter(link => link.visible).map(link => ({ id: link.id, title: link.title, url: link.url, visible: true })) };
+}
+
+async function syncPublicPage(owner, snapshot) {
+  if (!authClient || owner !== cloudUserId) return;
+  const username = String(state.account.username || '').toLowerCase().trim();
+  if (!/^[a-z0-9_.-]{3,30}$/.test(username)) return;
+  if (!snapshot.profile.published) {
+    const { error } = await authClient.from('linkki_public_pages').delete().eq('user_id', owner);
+    if (error) throw error;
+    return;
+  }
+  const { error } = await authClient.from('linkki_public_pages').upsert({
+    user_id: owner, username, public_data: { profile: Object.fromEntries(['name','username','bio','avatar','customColors','buttonStyle','buttonBorder','buttonShadow','titleFont','bodyFont','customFonts'].filter(k => Object.hasOwn(snapshot.profile,k)).map(k => [k,snapshot.profile[k]])), links: snapshot.links.filter(link => link.visible).map(link => ({ id: link.id, title: link.title, url: link.url, visible: true })) }, updated_at: new Date().toISOString()
+  }, { onConflict: 'user_id' });
+  if (error) throw error;
+}
+
 function queueCloudSave() {
   if (!cloudReady || !cloudUserId || !authClient) return;
   const owner = cloudUserId;
@@ -340,6 +363,7 @@ function queueCloudSave() {
         user_id: owner, data: payload, updated_at: new Date().toISOString()
       }, { onConflict: 'user_id' });
       if (error) throw error;
+      await syncPublicPage(owner, payload);
       cloudErrorShown = false;
       const status = document.querySelector('.save-status');
       if (status && owner === cloudUserId) status.textContent = 'Salvo na nuvem';
@@ -709,11 +733,11 @@ function loginPage() {
   return authShell(content, "Bom ter você de volta.", "Acesse sua conta para editar, personalizar e acompanhar sua página.");
 }
 
-function avatarMarkup(className = "profile-avatar") {
-  if (state.profile.avatar) {
-    return `<div class="${className}"><img src="${escapeHtml(state.profile.avatar)}" alt="Foto de ${escapeHtml(state.profile.name)}" /></div>`;
+function avatarMarkup(className = "profile-avatar", profile = state.profile) {
+  if (profile.avatar) {
+    return `<div class="${className}"><img src="${escapeHtml(profile.avatar)}" alt="Foto de ${escapeHtml(profile.name)}" /></div>`;
   }
-  return `<div class="${className}" aria-label="Avatar de ${escapeHtml(state.profile.name)}">${escapeHtml(initials(state.profile.name))}</div>`;
+  return `<div class="${className}" aria-label="Avatar de ${escapeHtml(profile.name)}">${escapeHtml(initials(profile.name))}</div>`;
 }
 
 function fontName(fontId) {
@@ -726,9 +750,9 @@ function customFontFamily(fontId) {
   return `LinkkiFont-${String(fontId).replace(/[^a-z0-9_-]/gi, "")}`;
 }
 
-function fontCssValue(fontId) {
+function fontCssValue(fontId, profile = state.profile) {
   if (fontPresets[fontId]) return fontPresets[fontId].css;
-  if (state.profile.customFonts.some((font) => font.id === fontId)) return `"${customFontFamily(fontId)}", sans-serif`;
+  if (profile.customFonts.some((font) => font.id === fontId)) return `"${customFontFamily(fontId)}", sans-serif`;
   return fontPresets.system.css;
 }
 
@@ -744,10 +768,11 @@ function buttonShadowValue(shadow = state.profile.buttonShadow) {
   return `${x}px ${y}px ${blur}px rgba(42,60,36,${opacity})`;
 }
 
-function publicProfileMarkup() {
-  const visibleLinks = state.links.filter((link) => link.visible);
-  const custom = state.profile.customColors;
-  const border = state.profile.buttonBorder;
+function publicProfileMarkup(page = { profile: state.profile, links: state.links }) {
+  const profile = page.profile;
+  const visibleLinks = page.links.filter((link) => link.visible);
+  const custom = profile.customColors;
+  const border = profile.buttonBorder;
   const colorStyle = [
     `--profile-bg:${validHex(custom.background, "#CAD593")}`,
     `--profile-text:${validHex(custom.text, "#2A3C24")}`,
@@ -755,22 +780,22 @@ function publicProfileMarkup() {
     `--button-text:${validHex(custom.buttonText, "#CAD593")}`,
     `--button-border-width:${border.enabled ? "2px" : "0px"}`,
     `--button-border-color:${validHex(border.color, "#2A3C24")}`,
-    `--button-shadow:${buttonShadowValue()}`,
-    `--title-font:${fontCssValue(state.profile.titleFont)}`,
-    `--body-font:${fontCssValue(state.profile.bodyFont)}`,
+    `--button-shadow:${buttonShadowValue(profile.buttonShadow)}`,
+    `--title-font:${fontCssValue(profile.titleFont, profile)}`,
+    `--body-font:${fontCssValue(profile.bodyFont, profile)}`,
     `background:${validHex(custom.background, "#CAD593")}`,
   ].join(";");
-  const customFontStyle = state.profile.customFonts.length
-    ? `<style>${state.profile.customFonts.map((font) => `@font-face{font-family:"${customFontFamily(font.id)}";src:url("${escapeHtml(font.dataUrl)}")}`).join("")}</style>`
+  const customFontStyle = profile.customFonts.length
+    ? `<style>${profile.customFonts.map((font) => `@font-face{font-family:"${customFontFamily(font.id)}";src:url("${escapeHtml(font.dataUrl)}")}`).join("")}</style>`
     : "";
   return `
     ${customFontStyle}
-    <div class="profile-canvas bg-custom buttons-${escapeHtml(state.profile.buttonStyle)}" style="${escapeHtml(colorStyle)}">
+    <div class="profile-canvas bg-custom buttons-${escapeHtml(profile.buttonStyle)}" style="${escapeHtml(colorStyle)}">
       <div class="profile-inner">
-        ${avatarMarkup("public-avatar")}
-        <h1 class="public-name">${escapeHtml(state.profile.name || "Seu nome")}</h1>
-        <p class="public-handle">@${escapeHtml(state.profile.username || "seuusuario")}</p>
-        <p class="public-bio">${escapeHtml(state.profile.bio || "Conte um pouco sobre você.")}</p>
+        ${avatarMarkup("public-avatar", profile)}
+        <h1 class="public-name">${escapeHtml(profile.name || "Seu nome")}</h1>
+        <p class="public-handle">@${escapeHtml(profile.username || "seuusuario")}</p>
+        <p class="public-bio">${escapeHtml(profile.bio || "Conte um pouco sobre você.")}</p>
         <div class="public-links">
           ${visibleLinks.length ? visibleLinks.map((link) => `
             <a
@@ -1414,6 +1439,25 @@ function publicPage() {
   `;
 }
 
+let publicRouteToken = 0;
+async function loadPublicRoute(username) {
+  const token = ++publicRouteToken;
+  const app = document.querySelector('#app');
+  app.innerHTML = '<main class="public-page"><div class="profile-canvas bg-light"><div class="profile-inner"><p class="public-bio">Carregando página...</p></div></div></main>';
+  if (!authClient) { app.innerHTML = publicNotFound('Não foi possível carregar esta página.'); return; }
+  const { data, error } = await authClient.from('linkki_public_pages').select('public_data').eq('username',username).maybeSingle();
+  if (token !== publicRouteToken || location.hash.replace(/^#\/?/, '').toLowerCase() !== username) return;
+  if (error || !data?.public_data?.profile || !Array.isArray(data.public_data.links)) {
+    app.innerHTML = publicNotFound(error ? 'Não foi possível carregar esta página.' : 'Esta página não está publicada.');
+  } else {
+    app.innerHTML = `<main class="public-page">${publicProfileMarkup(data.public_data)}</main>`;
+  }
+  bindEvents();
+}
+function publicNotFound(message) {
+  return `<main class="public-page"><div class="profile-canvas bg-light"><div class="profile-inner"><div class="public-avatar">木</div><h1 class="public-name">${escapeHtml(message)}</h1><a class="button button--primary" href="#home">Voltar ao Linkki</a></div></div></main>`;
+}
+
 function render() {
   const app = document.querySelector("#app");
   const route = location.hash.replace(/^#\/?/, "") || "home";
@@ -1427,6 +1471,9 @@ function render() {
     else app.innerHTML = editorPage();
   } else if (route === "public") {
     app.innerHTML = publicPage();
+  } else if (/^[a-z0-9_.-]{3,30}$/i.test(route) && route !== "home") {
+    loadPublicRoute(route.toLowerCase());
+    return;
   } else {
     app.innerHTML = landingPage();
   }
@@ -2125,7 +2172,7 @@ function bindEvents() {
   document.querySelector('[data-action="share"]')?.addEventListener("click", async () => {
     state.analytics.shares += 1;
     saveState();
-    const url = location.href;
+    const url = `${location.origin}${location.pathname}#/${encodeURIComponent(state.account.username || state.profile.username)}`;
     try {
       if (navigator.share) {
         await navigator.share({ title: `${state.profile.name} na Linkki`, text: state.profile.bio, url });
@@ -2141,7 +2188,7 @@ function bindEvents() {
   document.querySelectorAll("[data-public-link]").forEach((linkElement) => {
     linkElement.addEventListener("click", () => {
       const link = state.links.find((item) => item.id === linkElement.dataset.publicLink);
-      if (link) {
+      if (link && state.account.loggedIn && location.hash === "#public") {
         link.clicks = (Number(link.clicks) || 0) + 1;
         saveState();
       }
