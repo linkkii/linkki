@@ -500,10 +500,36 @@ function validHex(value, fallback) {
 }
 
 function safeUrl(value = "") {
-  const trimmed = value.trim();
-  if (/^(https?:|mailto:|tel:)/i.test(trimmed)) return trimmed;
-  if (!trimmed) return "#";
-  return `https://${trimmed}`;
+  const input = String(value ?? "").trim();
+  if (!input || /[\u0000-\u001f\u007f\\<>"'`]/.test(input)) return "#";
+  // Não transforme protocolos desconhecidos em links clicáveis.
+  if (/^[a-z][a-z0-9+.-]*:/i.test(input) && !/^(https?:|mailto:|tel:)/i.test(input)) return "#";
+  const candidate = /^[a-z][a-z0-9+.-]*:/i.test(input) ? input : `https://${input}`;
+  try {
+    const url = new URL(candidate);
+    if (url.protocol === "http:" || url.protocol === "https:") {
+      if (!url.hostname || url.username || url.password) return "#";
+      return url.href;
+    }
+    if (url.protocol === "mailto:" && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(candidate.slice(7))) return candidate;
+    if (url.protocol === "tel:" && /^\+?[0-9(). -]{3,25}$/.test(candidate.slice(4))) return candidate;
+  } catch { /* Endereço inválido. */ }
+  return "#";
+}
+
+function safeImageSrc(value = "") {
+  const input = String(value ?? "");
+  if (/^data:image\/(?:png|jpeg|gif|webp);base64,[a-z0-9+/=]+$/i.test(input)) return input;
+  try {
+    const url = new URL(input);
+    if (["https:", "http:"].includes(url.protocol) && !url.username && !url.password) return url.href;
+  } catch { /* Imagem inválida. */ }
+  return "";
+}
+
+function safeFontData(value = "") {
+  const input = String(value ?? "");
+  return /^data:(?:font\/(?:woff2?|ttf|otf)|application\/(?:font-woff|font-woff2|x-font-ttf|x-font-opentype|octet-stream));base64,[a-z0-9+/=]+$/i.test(input) ? input : "";
 }
 
 function initials(name = "") {
@@ -769,8 +795,8 @@ function loginPage() {
 }
 
 function avatarMarkup(className = "profile-avatar", profile = state.profile) {
-  if (profile.avatar) {
-    return `<div class="${className}"><img src="${escapeHtml(profile.avatar)}" alt="Foto de ${escapeHtml(profile.name)}" /></div>`;
+  if (safeImageSrc(profile.avatar)) {
+    return `<div class="${className}"><img src="${escapeHtml(safeImageSrc(profile.avatar))}" alt="Foto de ${escapeHtml(profile.name)}" /></div>`;
   }
   return `<div class="${className}" aria-label="Avatar de ${escapeHtml(profile.name)}">${escapeHtml(initials(profile.name))}</div>`;
 }
@@ -821,7 +847,7 @@ function publicProfileMarkup(page = { profile: state.profile, links: state.links
     `background:${validHex(custom.background, "#CAD593")}`,
   ].join(";");
   const customFontStyle = profile.customFonts.length
-    ? `<style>${profile.customFonts.map((font) => `@font-face{font-family:"${customFontFamily(font.id)}";src:url("${escapeHtml(font.dataUrl)}")}`).join("")}</style>`
+    ? `<style>${profile.customFonts.filter((font) => safeFontData(font.dataUrl)).map((font) => `@font-face{font-family:"${customFontFamily(font.id)}";src:url("${safeFontData(font.dataUrl)}")}`).join("")}</style>`
     : "";
   return `
     ${customFontStyle}
@@ -2202,6 +2228,12 @@ function bindEvents() {
       const username = String(state.account.username || '').toLowerCase().trim();
       if (!/^[a-z0-9_.-]{3,30}$/.test(username)) throw new Error('Nickname inválido');
       const payload = publicPublishPayload();
+      if (payload.links.some((link) => safeUrl(link.url) === "#")) {
+        showToast('Corrija os endereços dos links visíveis antes de publicar.');
+        button.disabled = false;
+        button.textContent = wasPublished ? 'Publicar alterações' : 'Publicar';
+        return;
+      }
       const { error } = await authClient.from('linkki_public_pages').upsert({
         user_id: owner, username, public_data: payload, updated_at: new Date().toISOString()
       }, { onConflict: 'user_id' });
