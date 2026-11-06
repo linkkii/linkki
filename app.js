@@ -177,7 +177,7 @@ const defaultState = {
     views: 128,
     shares: 7,
   },
-  communityTemplates: seedCommunityTemplates(),
+  communityTemplates: [],
   userPages: [],
 };
 
@@ -310,7 +310,7 @@ function loadState() {
       profile,
       analytics: { ...base.analytics, ...(parsed.analytics || {}) },
       links: Array.isArray(parsed.links) ? parsed.links : base.links,
-      communityTemplates: Array.isArray(parsed.communityTemplates) ? parsed.communityTemplates : base.communityTemplates,
+      communityTemplates: [],
       userPages: Array.isArray(parsed.userPages) ? parsed.userPages : base.userPages,
     };
   } catch {
@@ -337,7 +337,7 @@ function editableSnapshot() {
     analytics: { views: 0, shares: 0 },
     userPages: state.userPages,
     currentPageId: state.currentPageId,
-    communityTemplates: state.communityTemplates,
+    communityTemplates: [],
   };
 }
 
@@ -353,7 +353,7 @@ function applyCloudSnapshot(snapshot) {
     state.analytics = { views: 0, shares: 0 };
     state.userPages = normalized.userPages;
     state.currentPageId = normalized.currentPageId;
-    state.communityTemplates = normalized.communityTemplates;
+    state.communityTemplates = [];
     if (!state.userPages.length) state.userPages = seedUserPages(state.profile);
   } finally {
     if (previous === null) localStorage.removeItem(STORAGE_KEY);
@@ -467,6 +467,7 @@ async function initializeCloudForUser(user) {
   state.account.verified = true;
   state.account.loggedIn = true;
   cloudReady = true;
+  void loadCommunityTemplates();
   publishedFingerprint = null;
   try {
     const { data: publishedPage } = await authClient.from('linkki_public_pages')
@@ -1340,6 +1341,40 @@ function communityTemplateCard(template, mine = false) {
   `;
 }
 
+let communityBusy = false;
+let communityRequest = 0;
+async function loadCommunityTemplates() {
+  if (!authClient || !cloudUserId || !cloudReady) return;
+  const owner = cloudUserId;
+  const request = ++communityRequest;
+  const { data, error } = await authClient.rpc('linkki_community_list');
+  if (owner !== cloudUserId || request !== communityRequest) return;
+  if (error) { console.error('Comunidade:', error); showToast('Não foi possível carregar os modelos.'); return; }
+  state.communityTemplates = (Array.isArray(data) ? data : []).map(item => ({
+    id: item.id, ownerId: item.owner_id === owner ? 'self' : item.owner_id,
+    sourcePageId: item.source_page_id, author: item.author, initials: initials(item.author || ''),
+    title: item.title, category: item.category, likes: Number(item.likes) || 0,
+    uses: Number(item.uses) || 0, liked: item.liked === true, published: true,
+    appearance: item.appearance
+  }));
+  if (location.hash.replace(/^#\/?/, '') === 'editor' && state.activeSection === 'community') render();
+}
+async function communityAction(action, payload, successMessage) {
+  if (communityBusy || !authClient || !cloudUserId || !cloudReady) return;
+  communityBusy = true;
+  try {
+    const { data, error } = await authClient.rpc(action, payload);
+    if (error) throw error;
+    await loadCommunityTemplates();
+    if (successMessage) showToast(successMessage);
+    return data;
+  } catch (error) {
+    console.error('Comunidade:', error);
+    showToast('Não foi possível concluir. Tente novamente.');
+    return null;
+  } finally { communityBusy = false; }
+}
+
 function communityPanel() {
   syncCurrentPageSnapshot();
   const publishedTemplates = state.communityTemplates.filter((template) => template.published);
@@ -1406,7 +1441,7 @@ function communityPanel() {
       <strong>${formatCount(publishedTemplates.reduce((sum, template) => sum + template.uses, 0))}<small>aplicações</small></strong>
     </section>
     <div class="community-section-title"><div><h2>Em destaque</h2><p>Modelos que a comunidade está usando agora.</p></div><span>${publishedTemplates.length} modelos</span></div>
-    <div class="community-grid">${publishedTemplates.map((template) => communityTemplateCard(template)).join("")}</div>
+    ${publishedTemplates.length ? `<div class="community-grid">${publishedTemplates.map((template) => communityTemplateCard(template)).join("")}</div>` : `<div class="community-empty"><span>木</span><strong>A comunidade está começando!</strong><p>Seja uma das primeiras pessoas a publicar um modelo.</p><button class="button button--primary" data-community-view="publish">Publicar modelo</button></div>`}
   `;
 }
 
@@ -2188,86 +2223,59 @@ function bindEvents() {
       state.communityView = button.dataset.communityView;
       saveState();
       render();
+      void loadCommunityTemplates();
     });
   });
 
-  document.querySelectorAll('[data-action="like-template"]').forEach((button) => {
-    button.addEventListener("click", () => {
-      const template = state.communityTemplates.find((item) => item.id === button.dataset.templateId);
-      if (!template) return;
-      template.liked = !template.liked;
-      template.likes = Math.max(0, Number(template.likes || 0) + (template.liked ? 1 : -1));
-      saveState();
-      render();
+  document.querySelectorAll('[data-action="like-template"]').forEach(button => {
+    button.addEventListener('click', async () => {
+      await communityAction('linkki_community_toggle_like', { p_template_id: button.dataset.templateId });
     });
   });
 
-  document.querySelectorAll('[data-action="apply-template"]').forEach((button) => {
-    button.addEventListener("click", () => {
-      const template = state.communityTemplates.find((item) => item.id === button.dataset.templateId && item.published);
+  document.querySelectorAll('[data-action="apply-template"]').forEach(button => {
+    button.addEventListener('click', async () => {
+      const template = state.communityTemplates.find(item => item.id === button.dataset.templateId && item.published);
       if (!template) return;
+      const applied = await communityAction('linkki_community_apply', { p_template_id: template.id });
+      if (!applied) return;
       const appearance = JSON.parse(JSON.stringify(template.appearance));
       state.profile.customColors = appearance.customColors;
-      state.profile.backgroundMode = appearance.backgroundMode || "solid";
-      state.profile.gradientSecondColor = appearance.gradientSecondColor || "#F2F5DF";
-      state.profile.elementAnimation = appearance.elementAnimation || "none";
+      state.profile.backgroundMode = appearance.backgroundMode || 'solid';
+      state.profile.gradientSecondColor = appearance.gradientSecondColor || '#F2F5DF';
+      state.profile.elementAnimation = appearance.elementAnimation || 'none';
       state.profile.buttonStyle = appearance.buttonStyle;
       state.profile.buttonBorder = appearance.buttonBorder;
       state.profile.buttonShadow = appearance.buttonShadow;
       state.profile.titleFont = appearance.titleFont;
       state.profile.bodyFont = appearance.bodyFont;
-      state.profile.background = "custom";
-      template.uses = Number(template.uses || 0) + 1;
-      state.activeSection = "editor";
-      state.activeTab = "appearance";
+      state.profile.background = 'custom';
+      state.activeSection = 'editor';
+      state.activeTab = 'appearance';
       saveState();
       render();
-      showToast("Modelo aplicado. Seus links e informações foram preservados.");
+      showToast('Modelo aplicado. Seus links e informações foram preservados.');
     });
   });
 
-  document.querySelectorAll('[data-action="publish-page-template"]').forEach((button) => {
-    button.addEventListener("click", () => {
+  document.querySelectorAll('[data-action="publish-page-template"]').forEach(button => {
+    button.addEventListener('click', async () => {
       syncCurrentPageSnapshot();
-      const page = state.userPages.find((item) => item.id === button.dataset.pageId);
+      const page = state.userPages.find(item => item.id === button.dataset.pageId);
       if (!page) return;
-      const existing = state.communityTemplates.find((template) => template.ownerId === "self" && template.sourcePageId === page.id);
-      if (existing) {
-        existing.published = true;
-        existing.appearance = JSON.parse(JSON.stringify(page.appearance));
-      } else {
-        const author = `${state.account.firstName || ""} ${state.account.lastName || ""}`.trim() || state.profile.name || "Você";
-        const category = accountCategories.find(([id]) => id === state.account.category)?.[2] || "Criadores";
-        state.communityTemplates.unshift({
-          id: `template-user-${crypto.randomUUID()}`,
-          sourcePageId: page.id,
-          ownerId: "self",
-          author,
-          initials: initials(author),
-          title: page.title,
-          category,
-          likes: existing?.likes || 0,
-          uses: existing?.uses || 0,
-          liked: false,
-          published: true,
-          appearance: JSON.parse(JSON.stringify(page.appearance)),
-        });
-      }
-      state.communityView = "mine";
-      saveState();
-      render();
-      showToast("Modelo publicado na comunidade.");
+      const author = `${state.account.firstName || ''} ${state.account.lastName || ''}`.trim() || state.profile.name || 'Você';
+      const category = accountCategories.find(([id]) => id === state.account.category)?.[2] || 'Criadores';
+      const result = await communityAction('linkki_community_publish', {
+        p_source_page_id: page.id, p_title: page.title, p_author: author,
+        p_category: category, p_appearance: appearanceSnapshot(page.appearance ? { ...state.profile, ...page.appearance } : state.profile)
+      }, 'Modelo publicado na comunidade.');
+      if (result) { state.communityView = 'mine'; render(); }
     });
   });
 
-  document.querySelectorAll('[data-action="unpublish-template"]').forEach((button) => {
-    button.addEventListener("click", () => {
-      const template = state.communityTemplates.find((item) => item.id === button.dataset.templateId && item.ownerId === "self");
-      if (!template) return;
-      template.published = false;
-      saveState();
-      render();
-      showToast("Publicação removida. Sua página continua salva.");
+  document.querySelectorAll('[data-action="unpublish-template"]').forEach(button => {
+    button.addEventListener('click', async () => {
+      await communityAction('linkki_community_remove', { p_template_id: button.dataset.templateId }, 'Publicação removida. Sua página continua salva.');
     });
   });
 
