@@ -133,6 +133,8 @@ const defaultState = {
     username: "marina",
     bio: "Criatividade, rotina e tudo que inspira meu caminho.",
     avatar: "",
+    avatarLayout: "classic",
+    bannerImage: "",
     avatarBorder: { enabled: false, color: "#2A3C24" },
     background: "custom",
     backgroundMode: "solid",
@@ -372,7 +374,7 @@ function reportCloudError(error) {
 // Apenas os campos destinados à página pública são enviados para esta tabela.
 function publicPageSnapshot() {
   const profile = structuredClone(state.profile);
-  const allowed = ['name','username','bio','avatar','avatarBorder','customColors','backgroundMode','gradientSecondColor','elementAnimation','buttonStyle','buttonBorder','buttonShadow','titleFont','bodyFont','customFonts'];
+  const allowed = ['name','username','bio','avatar','avatarLayout','bannerImage','avatarBorder','customColors','backgroundMode','gradientSecondColor','elementAnimation','buttonStyle','buttonBorder','buttonShadow','titleFont','bodyFont','customFonts'];
   const safeProfile = Object.fromEntries(allowed.filter(k => Object.hasOwn(profile,k)).map(k => [k,profile[k]]));
   return { profile: safeProfile, links: state.links.filter(link => link.visible).map(link => ({ id: link.id, title: link.title, url: link.url, visible: true })) };
 }
@@ -387,7 +389,7 @@ async function syncPublicPage(owner, snapshot) {
     return;
   }
   const { error } = await authClient.from('linkki_public_pages').upsert({
-    user_id: owner, username, public_data: { profile: Object.fromEntries(['name','username','bio','avatar','avatarBorder','customColors','backgroundMode','gradientSecondColor','elementAnimation','buttonStyle','buttonBorder','buttonShadow','titleFont','bodyFont','customFonts'].filter(k => Object.hasOwn(snapshot.profile,k)).map(k => [k,snapshot.profile[k]])), links: snapshot.links.filter(link => link.visible).map(link => ({ id: link.id, title: link.title, url: link.url, visible: true })) }, updated_at: new Date().toISOString()
+    user_id: owner, username, public_data: { profile: Object.fromEntries(['name','username','bio','avatar','avatarLayout','bannerImage','avatarBorder','customColors','backgroundMode','gradientSecondColor','elementAnimation','buttonStyle','buttonBorder','buttonShadow','titleFont','bodyFont','customFonts'].filter(k => Object.hasOwn(snapshot.profile,k)).map(k => [k,snapshot.profile[k]])), links: snapshot.links.filter(link => link.visible).map(link => ({ id: link.id, title: link.title, url: link.url, visible: true })) }, updated_at: new Date().toISOString()
   }, { onConflict: 'user_id' });
   if (error) throw error;
 }
@@ -395,7 +397,7 @@ async function syncPublicPage(owner, snapshot) {
 function publicPublishPayload() {
   const snapshot = editableSnapshot();
   const profile = snapshot.profile;
-  const allowed = ['name','username','bio','avatar','avatarBorder','customColors','backgroundMode','gradientSecondColor','elementAnimation','buttonStyle','buttonBorder','buttonShadow','titleFont','bodyFont','customFonts'];
+  const allowed = ['name','username','bio','avatar','avatarLayout','bannerImage','avatarBorder','customColors','backgroundMode','gradientSecondColor','elementAnimation','buttonStyle','buttonBorder','buttonShadow','titleFont','bodyFont','customFonts'];
   return {
     profile: Object.fromEntries(allowed.filter(k => Object.hasOwn(profile,k)).map(k => [k,profile[k]])),
     links: snapshot.links.filter(link => link.visible).map(link => ({ id: link.id, title: link.title, url: link.url, visible: true }))
@@ -919,9 +921,12 @@ function buttonShadowValue(shadow = state.profile.buttonShadow) {
 function publicProfileMarkup(page = { profile: state.profile, links: state.links }) {
   const profile = page.profile;
   const visibleLinks = page.links.filter((link) => link.visible);
-  const custom = profile.customColors;
+  const custom = profile.customColors || { background: "#CAD593", text: "#2A3C24", buttonBackground: "#2A3C24", buttonText: "#CAD593" };
   const border = profile.buttonBorder || { enabled: false, color: "#2A3C24" };
   const mode = profile.backgroundMode === "gradient" ? "gradient" : "solid";
+  const avatarLayout = ["classic", "hero", "banner"].includes(profile.avatarLayout) ? profile.avatarLayout : "classic";
+  const heroImage = safeImageSrc(profile.avatar);
+  const bannerImage = safeImageSrc(profile.bannerImage);
   const animation = ["fade-top", "bounce", "fade-bottom"].includes(profile.elementAnimation) ? profile.elementAnimation : "none";
   const bg = validHex(custom.background, "#CAD593");
   const second = validHex(profile.gradientSecondColor, "#F2F5DF");
@@ -937,14 +942,16 @@ function publicProfileMarkup(page = { profile: state.profile, links: state.links
     `--body-font:${fontCssValue(profile.bodyFont, profile)}`,
     `background:${mode === "gradient" ? `linear-gradient(180deg, ${bg} 0%, ${second} 100%)` : bg}`,
   ].join(";");
-  const customFontStyle = profile.customFonts.length
-    ? `<style>${profile.customFonts.filter((font) => safeFontData(font.dataUrl)).map((font) => `@font-face{font-family:"${customFontFamily(font.id)}";src:url("${safeFontData(font.dataUrl)}")}`).join("")}</style>`
+  const customFontStyle = (profile.customFonts || []).length
+    ? `<style>${(profile.customFonts || []).filter((font) => safeFontData(font.dataUrl)).map((font) => `@font-face{font-family:"${customFontFamily(font.id)}";src:url("${safeFontData(font.dataUrl)}")}`).join("")}</style>`
     : "";
   return `
     ${customFontStyle}
-    <div class="profile-canvas bg-custom profile-motion-${animation} buttons-${escapeHtml(profile.buttonStyle)}" style="${escapeHtml(colorStyle)}">
+    <div class="profile-canvas bg-custom profile-layout-${avatarLayout} profile-motion-${animation} buttons-${escapeHtml(profile.buttonStyle)}" style="${escapeHtml(colorStyle)}">
+      ${avatarLayout === "hero" && heroImage ? `<div class="linkki-profile-cover linkki-profile-cover--hero" style="background-image:url('${escapeHtml(heroImage)}')" aria-hidden="true"></div>` : ""}
+      ${avatarLayout === "banner" && bannerImage ? `<div class="linkki-profile-cover linkki-profile-cover--banner" style="background-image:url('${escapeHtml(bannerImage)}')" aria-hidden="true"></div>` : ""}
       <div class="profile-inner">
-        ${avatarMarkup("public-avatar", profile)}
+        ${avatarLayout === "hero" && heroImage ? "" : avatarMarkup("public-avatar", profile)}
         <h1 class="public-name">${escapeHtml(profile.name || "Seu nome")}</h1>
         <p class="public-handle">@${escapeHtml(profile.username || "seuusuario")}</p>
         <p class="public-bio">${escapeHtml(profile.bio || "Conte um pouco sobre você.")}</p>
@@ -1130,6 +1137,16 @@ function appearancePanel() {
         <p>Personalize cada parte da página e acompanhe o resultado na prévia.</p>
       </div>
     </div>
+
+    <section class="card linkki-layout-card">
+      <div class="card-title"><h2>Layout da foto de perfil</h2></div>
+      <p class="linkki-setting-description">Escolha como sua foto aparece no topo da página.</p>
+      <div class="linkki-layout-options" role="group" aria-label="Layout da foto de perfil">
+        ${[["classic","Clássico"],["hero","Hero"],["banner","Banner"]].map(([id,label]) => `<button type="button" class="linkki-layout-option ${((state.profile.avatarLayout || "classic") === id) ? "is-active" : ""}" data-avatar-layout="${id}" aria-pressed="${(state.profile.avatarLayout || "classic") === id}"><span class="linkki-layout-mini linkki-layout-mini--${id}"><span></span></span><strong>${label}</strong></button>`).join("")}
+      </div>
+      ${state.profile.avatarLayout === "banner" ? `<div class="linkki-banner-upload"><strong>Imagem do banner</strong><span>Escolha uma imagem horizontal para ficar atrás da foto de perfil.</span><div class="linkki-banner-actions">${safeImageSrc(state.profile.bannerImage) ? `<img class="linkki-banner-thumbnail" src="${escapeHtml(safeImageSrc(state.profile.bannerImage))}" alt="Prévia do banner" />` : ""}<label class="button button--ghost button--small" for="linkki-banner-input">${state.profile.bannerImage ? "Trocar banner" : "Enviar banner"}</label>${state.profile.bannerImage ? `<button type="button" class="button button--ghost button--small" data-action="remove-banner">Remover</button>` : ""}</div></div>` : ""}
+      <input id="linkki-banner-input" type="file" accept="image/png,image/jpeg,image/webp,image/gif" hidden />
+    </section>
 
     <section class="card">
       <div class="card-title"><h2>Cores</h2></div>
@@ -2466,6 +2483,23 @@ function bindEvents() {
   });
 
   document.querySelector('[data-action="add-link"]')?.addEventListener("click", addLink);
+  document.querySelectorAll("[data-avatar-layout]").forEach(button => button.addEventListener("click", () => {
+    const layout = button.dataset.avatarLayout;
+    if (!["classic", "hero", "banner"].includes(layout)) return;
+    state.profile.avatarLayout = layout;
+    saveState();
+    render();
+  }));
+  document.querySelector('[data-action="remove-banner"]')?.addEventListener("click", () => updateProfileField("bannerImage", ""));
+  document.querySelector("#linkki-banner-input")?.addEventListener("change", event => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    if (file.size > 2 * 1024 * 1024) { showToast("Escolha uma imagem de até 2 MB."); return; }
+    if (!["image/png", "image/jpeg", "image/webp", "image/gif"].includes(file.type)) { showToast("Use uma imagem PNG, JPG, WEBP ou GIF."); return; }
+    const reader = new FileReader();
+    reader.onload = () => updateProfileField("bannerImage", reader.result);
+    reader.readAsDataURL(file);
+  });
   document.querySelector('[data-action="remove-avatar"]')?.addEventListener("click", () => updateProfileField("avatar", ""));
 
   document.querySelector("#avatar-input")?.addEventListener("change", (event) => {
