@@ -566,9 +566,9 @@ function syncLivePreview() {
   }
 
   const sidebarName = document.querySelector(".sidebar-profile strong");
-  const sidebarUrl = document.querySelector(".sidebar-profile span");
+  const sidebarUrl = document.querySelector(".sidebar-profile [data-sidebar-short-url]");
   if (sidebarName) sidebarName.textContent = state.profile.name || "Seu nome";
-  if (sidebarUrl) sidebarUrl.textContent = `linkki.com/${state.profile.username || "usuario"}`;
+  if (sidebarUrl) sidebarUrl.textContent = `linkki.com/${state.account.username || state.profile.username || "usuario"}`;
 }
 
 function escapeHtml(value = "") {
@@ -988,7 +988,8 @@ function sidebar() {
       `).join("")}
       <div class="sidebar-profile">
         <strong>${escapeHtml(state.profile.name || "Seu nome")}</strong>
-        <span>linkki.com/${escapeHtml(state.profile.username || "usuario")}</span>
+        <span data-sidebar-short-url>linkki.com/${escapeHtml(state.account.username || state.profile.username || "usuario")}</span>
+        <button type="button" class="sidebar-share-button" data-action="sidebar-share" aria-label="Copiar link público da página">↗ Compartilhar página</button>
       </div>
     </aside>
   `;
@@ -2606,6 +2607,31 @@ function bindEvents() {
       button.disabled = false;
       button.textContent = wasPublished ? 'Publicar alterações' : 'Publicar';
     } finally { publishInProgress = false; }
+  });
+
+  document.querySelector('[data-action="sidebar-share"]')?.addEventListener("click", async () => {
+    const username = (state.account.username || state.profile.username || "").trim();
+    if (!username) { showToast("Defina um nome de usuário para compartilhar."); return; }
+    const url = `${location.origin}${location.pathname}#/${encodeURIComponent(username)}`;
+    try {
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(url);
+      } else {
+        const temporary = document.createElement("textarea");
+        temporary.value = url;
+        temporary.setAttribute("readonly", "");
+        temporary.style.position = "fixed";
+        temporary.style.opacity = "0";
+        document.body.appendChild(temporary);
+        temporary.select();
+        const copied = document.execCommand("copy");
+        temporary.remove();
+        if (!copied) throw new Error("Não foi possível copiar");
+      }
+      showToast("Link copiado para a área de transferência!");
+    } catch (error) {
+      showToast("Não foi possível copiar o link.");
+    }
   });
 
   document.querySelector('[data-action="share"]')?.addEventListener("click", async () => {

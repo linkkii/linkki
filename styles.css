@@ -3634,3 +3634,25 @@ button.template-stat {
 .public-page .linkki-profile-cover--hero { height:clamp(230px,30vw,360px); margin-top:-72px; margin-bottom:-78px; }
 .public-page .linkki-profile-cover--banner { height:clamp(170px,22vw,250px); margin-top:-72px; margin-bottom:-52px; }
 @media (prefers-reduced-motion:reduce) { .linkki-layout-option { transition:none; } }
+
+/* Compartilhamento da página no cartão lateral */
+.sidebar-share-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
+  margin-top: 12px;
+  padding: 9px 8px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: transparent;
+  color: var(--ink, #293b25);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 650;
+  cursor: pointer;
+  transition: background-color .2s ease;
+}
+.sidebar-share-button:hover { background: rgba(42, 60, 36, .07); }
+.sidebar-share-button:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
