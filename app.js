@@ -235,6 +235,8 @@ function syncCurrentPageSnapshot() {
   current.username = state.profile.username || "minhapagina";
   current.active = Boolean(state.profile.published);
   current.appearance = appearanceSnapshot(state.profile);
+  current.profileAvatar = state.profile.avatar || "";
+  current.previewLinks = state.links.filter(link => link.visible).map(link => ({ title: link.title }));
 }
 
 function loadState() {
@@ -1295,13 +1297,17 @@ function templatePreviewMarkup(item) {
     `--template-body-font:${fontCssValue(appearance.bodyFont || "system")}`,
   ].join(";");
   const shape = appearance.buttonStyle || "rounded";
+  const avatar = typeof item.profileAvatar === "string" && /^(data:image\/(png|jpeg|jpg|webp|gif);base64,|https:\/\/)/i.test(item.profileAvatar) ? item.profileAvatar : "";
+  const miniLinks = Array.isArray(item.previewLinks)
+    ? item.previewLinks.filter(link => link && typeof link.title === "string").slice(0, 5).map(link => `<span>${escapeHtml(link.title)}</span>`).join("")
+    : "<span>Meu destaque</span><span>Conteúdo novo</span><span>Fale comigo</span>";
   return `
     <div class="template-preview template-shape-${escapeHtml(shape)}" style="${escapeHtml(style)}">
-      <div class="template-mini-avatar">${escapeHtml(item.initials || initials(item.title))}</div>
+      <div class="template-mini-avatar">${avatar ? `<img src="${escapeHtml(avatar)}" alt="Foto do perfil" />` : escapeHtml(item.initials || initials(item.title))}</div>
       <strong class="template-mini-name">${escapeHtml(item.previewName || item.author || item.title)}</strong>
       <span class="template-mini-handle">@${escapeHtml(item.username || "seulinkki")}</span>
       <div class="template-mini-links">
-        <span>Meu destaque</span><span>Conteúdo novo</span><span>Fale comigo</span>
+        ${miniLinks}
       </div>
       <small><img class="template-brand-image" src="./logo-linkki.png" alt="Linkki" /></small>
     </div>
@@ -1395,7 +1401,7 @@ function communityPanel() {
           const existing = state.communityTemplates.find((template) => template.ownerId === "self" && template.sourcePageId === page.id && template.published);
           return `
             <article class="user-page-card">
-              ${templatePreviewMarkup({ ...page, author: state.profile.name, initials: initials(state.profile.name), previewName: page.title })}
+              ${templatePreviewMarkup({ ...page, author: state.profile.name, initials: initials(state.profile.name), previewName: page.profileName || page.title })}
               <div class="user-page-info">
                 <div>
                   <strong>${escapeHtml(page.title)}</strong>
