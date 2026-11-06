@@ -1596,13 +1596,8 @@ function myPagesPanel() {
   syncCurrentPageSnapshot();
   return `
     <div class="panel-header section-panel-header">
-      <div><span class="section-eyebrow">PÁGINAS</span><h1>Minhas páginas</h1><p>Crie, ative, desative e edite suas páginas da Linkki.</p></div>
+      <div><span class="section-eyebrow">PÁGINAS</span><h1>Minhas páginas</h1></div>
       <button class="button button--accent" data-action="create-page">+ Nova página</button>
-    </div>
-    <div class="pages-summary">
-      <div><strong>${state.userPages.length}</strong><span>Páginas criadas</span></div>
-      <div><strong>${state.userPages.filter((page) => page.active).length}</strong><span>Ativas</span></div>
-      <div><strong>${state.userPages.filter((page) => !page.active).length}</strong><span>Desativadas</span></div>
     </div>
     <div class="managed-pages-grid">
       ${state.userPages.map((page) => `
