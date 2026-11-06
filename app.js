@@ -334,7 +334,7 @@ function editableSnapshot() {
   return {
     profile: state.profile,
     links: state.links,
-    analytics: state.analytics,
+    analytics: { views: 0, shares: 0 },
     userPages: state.userPages,
     currentPageId: state.currentPageId,
     communityTemplates: state.communityTemplates,
@@ -350,7 +350,7 @@ function applyCloudSnapshot(snapshot) {
     const normalized = loadState();
     state.profile = normalized.profile;
     state.links = normalized.links;
-    state.analytics = normalized.analytics;
+    state.analytics = { views: 0, shares: 0 };
     state.userPages = normalized.userPages;
     state.currentPageId = normalized.currentPageId;
     state.communityTemplates = normalized.communityTemplates;
@@ -493,6 +493,7 @@ async function restoreSupabaseSession() {
     await initializeCloudForUser(data.user);
   } catch (error) { reportCloudError(error); }
   render();
+  if (state.account.loggedIn && state.activeTab === "analytics") void loadRealAnalytics();
 }
 
 let pendingSignupPassword = "";
@@ -1409,46 +1410,52 @@ function communityPanel() {
   `;
 }
 
-function analyticsPanel() {
-  const totalClicks = state.links.reduce((sum, link) => sum + (Number(link.clicks) || 0), 0);
-  const maxClicks = Math.max(1, ...state.links.map((link) => Number(link.clicks) || 0));
-  const clickRate = state.analytics.views ? Math.round((totalClicks / state.analytics.views) * 100) : 0;
-  return `
-    <div class="panel-header">
-      <div>
-        <h1>Analytics</h1>
-        <p>Uma visão simples de como as pessoas interagem com sua Linkki.</p>
-      </div>
-    </div>
+let analyticsMetrics = { views: 0, clicks: 0, byLink: {} };
+let analyticsLoading = false;
+async function loadRealAnalytics() {
+  if (!authClient || !cloudUserId || !cloudReady) return;
+  const owner = cloudUserId;
+  analyticsLoading = true;
+  try {
+    const { data, error } = await authClient.rpc('linkki_analytics_summary');
+    if (error) throw error;
+    if (owner !== cloudUserId) return;
+    const result = data || {};
+    analyticsMetrics = {
+      views: Number(result.views) || 0,
+      clicks: Number(result.clicks) || 0,
+      byLink: result.by_link && typeof result.by_link === 'object' ? result.by_link : {}
+    };
+    if (location.hash.replace(/^#\/?/, '') === 'editor' && state.activeTab === 'analytics') render();
+  } catch (error) {
+    console.warn('Linkki: não foi possível carregar as métricas reais', error);
+    const note = document.querySelector('[data-analytics-status]');
+    if (note) note.textContent = 'Não foi possível carregar os dados reais. Confira a instalação do SQL.';
+  } finally { analyticsLoading = false; }
+}
 
+function analyticsPanel() {
+  const views = analyticsMetrics.views;
+  const clicks = analyticsMetrics.clicks;
+  const clickRate = views ? Math.round(clicks / views * 100) : 0;
+  const rows = state.links.map(link => ({ title: link.title || 'Sem título', clicks: Number(analyticsMetrics.byLink[link.id]) || 0 }));
+  const maxClicks = Math.max(1, ...rows.map(link => link.clicks));
+  return `
+    <div class="panel-header"><div><h1>Analytics</h1><p>Dados reais de acessos e cliques na sua página pública.</p></div></div>
     <div class="stats-grid">
-      <article class="stat-card"><span>Visualizações</span><strong>${state.analytics.views}</strong></article>
-      <article class="stat-card"><span>Cliques</span><strong>${totalClicks}</strong></article>
+      <article class="stat-card"><span>Visualizações</span><strong>${views}</strong></article>
+      <article class="stat-card"><span>Cliques</span><strong>${clicks}</strong></article>
       <article class="stat-card"><span>Taxa de clique</span><strong>${clickRate}%</strong></article>
     </div>
-
-    <section class="card">
-      <div class="card-title"><h2>Cliques por link</h2></div>
-      ${state.links.length ? state.links.map((link) => {
-        const clicks = Number(link.clicks) || 0;
-        const width = Math.max(3, Math.round((clicks / maxClicks) * 100));
-        return `
-          <div class="chart-row">
-            <span class="chart-label" title="${escapeHtml(link.title)}">${escapeHtml(link.title || "Sem título")}</span>
-            <span class="chart-track"><span class="chart-bar" style="width:${width}%"></span></span>
-            <span class="chart-value">${clicks}</span>
-          </div>
-        `;
-      }).join("") : `<div class="empty-state"><strong>Sem dados ainda</strong>Adicione links para começar a acompanhar os cliques.</div>`}
+    <section class="card"><div class="card-title"><h2>Cliques por link</h2></div>
+      ${rows.length ? rows.map(link => `
+        <div class="chart-row">
+          <span class="chart-label" title="${escapeHtml(link.title)}">${escapeHtml(link.title)}</span>
+          <span class="chart-track"><span class="chart-bar" style="width:${link.clicks ? Math.max(3, Math.round(link.clicks / maxClicks * 100)) : 0}%"></span></span>
+          <span class="chart-value">${link.clicks}</span>
+        </div>`).join('') : '<div class="empty-state"><strong>Sem links ainda</strong>Adicione links para acompanhar os cliques.</div>'}
     </section>
-
-    <section class="card">
-      <div class="card-title"><h2>Nesta primeira versão</h2></div>
-      <p style="margin:0;color:var(--muted);line-height:1.65;font-size:13px">
-        Os dados são demonstrativos e ficam salvos neste navegador. Na próxima fundação,
-        conectaremos contas, banco de dados e métricas reais.
-      </p>
-    </section>
+    <p data-analytics-status style="color:var(--muted);font-size:12px">As métricas começam do zero após instalar o SQL. Acessos à prévia e ao editor não são contabilizados. Visualizações são limitadas por navegador para reduzir repetições.</p>
   `;
 }
 
@@ -1641,6 +1648,26 @@ function publicPage() {
   `;
 }
 
+// Apenas a rota pública registra eventos. Nenhum evento é contado no editor ou na prévia.
+function analyticsVisitorKey() {
+  const key = 'linkki_analytics_visitor';
+  try {
+    let id = sessionStorage.getItem(key);
+    if (!id) { id = crypto.randomUUID(); sessionStorage.setItem(key, id); }
+    return id;
+  } catch { return crypto.randomUUID(); }
+}
+async function trackPublicEvent(username, eventType, linkId = null) {
+  if (!authClient || !username) return;
+  try {
+    const { error } = await authClient.rpc('linkki_track_public_event', {
+      p_username: username, p_event_type: eventType, p_link_id: linkId,
+      p_visitor_key: analyticsVisitorKey()
+    });
+    if (error) console.warn('Linkki: métrica não registrada', error);
+  } catch (error) { console.warn('Linkki: métrica não registrada', error); }
+}
+
 let publicRouteToken = 0;
 async function loadPublicRoute(username) {
   const token = ++publicRouteToken;
@@ -1653,6 +1680,7 @@ async function loadPublicRoute(username) {
     app.innerHTML = publicNotFound(error ? 'Não foi possível carregar esta página.' : 'Esta página não está publicada.');
   } else {
     app.innerHTML = `<main class="public-page">${publicProfileMarkup(data.public_data)}</main>`;
+    void trackPublicEvent(username, 'view');
   }
   bindEvents();
 }
@@ -2151,6 +2179,7 @@ function bindEvents() {
     button.addEventListener("click", () => {
       state.activeTab = button.dataset.tab;
       refreshEditorViews();
+      if (state.activeTab === "analytics") void loadRealAnalytics();
     });
   });
 
@@ -2667,10 +2696,9 @@ function bindEvents() {
 
   document.querySelectorAll("[data-public-link]").forEach((linkElement) => {
     linkElement.addEventListener("click", () => {
-      const link = state.links.find((item) => item.id === linkElement.dataset.publicLink);
-      if (link && state.account.loggedIn && location.hash === "#public") {
-        link.clicks = (Number(link.clicks) || 0) + 1;
-        saveState();
+      const route = location.hash.replace(/^#\/?/, '').toLowerCase();
+      if (route !== 'public' && /^[a-z0-9_.-]{3,30}$/.test(route)) {
+        void trackPublicEvent(route, 'click', linkElement.dataset.publicLink);
       }
     });
   });
