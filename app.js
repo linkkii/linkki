@@ -1455,7 +1455,7 @@ function analyticsPanel() {
           <span class="chart-value">${link.clicks}</span>
         </div>`).join('') : '<div class="empty-state"><strong>Sem links ainda</strong>Adicione links para acompanhar os cliques.</div>'}
     </section>
-    <p data-analytics-status style="color:var(--muted);font-size:12px">As métricas começam do zero após instalar o SQL. Acessos à prévia e ao editor não são contabilizados. Visualizações são limitadas por navegador para reduzir repetições.</p>
+    <p data-analytics-status style="color:var(--muted);font-size:12px" aria-live="polite"></p>
   `;
 }
 
