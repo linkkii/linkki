@@ -228,6 +228,18 @@ function seedUserPages(profile) {
   ];
 }
 
+// Um nickname possui apenas uma página pública. Normaliza estados antigos
+// que ainda guardavam mais de uma página marcada como ativa.
+function enforceSingleActivePage(preferredId = null) {
+  const pages = Array.isArray(state.userPages) ? state.userPages : [];
+  const chosen = pages.find(page => page.id === preferredId && page.active)
+    || pages.find(page => page.id === state.currentPageId && page.active)
+    || pages.find(page => page.active);
+  pages.forEach(page => { page.active = Boolean(chosen && page.id === chosen.id); });
+  if (chosen && state.currentPageId === chosen.id) state.profile.published = true;
+  else if (!chosen) state.profile.published = false;
+}
+
 function syncCurrentPageSnapshot() {
   const current = state.userPages.find((page) => page.id === state.currentPageId) || state.userPages[0];
   if (!current) return;
@@ -357,6 +369,7 @@ function applyCloudSnapshot(snapshot) {
     state.currentPageId = normalized.currentPageId;
     state.communityTemplates = [];
     if (!state.userPages.length) state.userPages = seedUserPages(state.profile);
+    enforceSingleActivePage();
   } finally {
     if (previous === null) localStorage.removeItem(STORAGE_KEY);
     else localStorage.setItem(STORAGE_KEY, previous);
@@ -481,6 +494,7 @@ async function initializeCloudForUser(user) {
       state.profile.published = false;
     }
   } catch (error) { console.warn('Linkki: estado da publicação indisponível', error); }
+  enforceSingleActivePage();
   localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
   if (!data?.data) queueCloudSave();
 }
@@ -2208,11 +2222,42 @@ function bindEvents() {
     button.addEventListener("click", () => {
       const page = state.userPages.find((item) => item.id === button.dataset.pageId);
       if (!page) return;
-      page.active = !page.active;
-      if (state.currentPageId === page.id) state.profile.published = page.active;
-      saveState();
-      render();
-      showToast(page.active ? "Página ativada." : "Página desativada.");
+      const activating = !page.active;
+      if (activating) {
+        // A página pública só muda de fato quando o conteúdo escolhido é publicado.
+        // Evita anunciar uma troca que ainda não ocorreu no Supabase.
+        state.userPages.forEach(item => { item.active = false; });
+        page.active = true;
+        state.currentPageId = page.id;
+        state.profile.name = page.profileName || page.title;
+        state.profile.username = state.account.username || state.profile.username;
+        if (page.appearance) {
+          const appearance = JSON.parse(JSON.stringify(page.appearance));
+          Object.assign(state.profile, appearance);
+        }
+        state.profile.published = false;
+        saveState();
+        state.activeSection = 'editor';
+        state.activeTab = 'content';
+        render();
+        showToast('Página selecionada. Clique em Publicar para atualizar seu link.');
+      } else {
+        // Desativar de verdade exige remover a publicação no Supabase.
+        if (!cloudReady || !cloudUserId || !authClient) {
+          showToast('Conecte-se à sua conta para desativar.');
+          return;
+        }
+        void (async () => {
+          const { error } = await authClient.from('linkki_public_pages').delete().eq('user_id', cloudUserId);
+          if (error) { showToast('Não foi possível desativar a página.'); return; }
+          page.active = false;
+          state.profile.published = false;
+          publishedFingerprint = null;
+          saveState();
+          render();
+          showToast('Página desativada.');
+        })();
+      }
     });
   });
 
@@ -2641,6 +2686,7 @@ function bindEvents() {
       if (owner !== cloudUserId) return;
       publishedFingerprint = JSON.stringify(payload);
       state.profile.published = true;
+      state.userPages.forEach(page => { page.active = page.id === state.currentPageId; });
       saveState();
       render();
       showToast(wasPublished ? 'Alterações publicadas!' : 'Sua Linkki está publicada!');
