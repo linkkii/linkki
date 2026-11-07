@@ -3661,3 +3661,17 @@ button.template-stat {
 }
 .sidebar-share-button:hover { background: rgba(42, 60, 36, .07); }
 .sidebar-share-button:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
+
+/* Loading das páginas públicas — não interfere no editor ou nas animações existentes. */
+.linkki-public-loading-page { position: relative; isolation: isolate; }
+.linkki-public-loading {
+  position: fixed; inset: 0; z-index: 100; display: grid; place-items: center;
+  background: #F7F8F3; opacity: 1; transition: opacity 420ms ease;
+}
+.linkki-public-loading--leaving { opacity: 0; pointer-events: none; }
+.linkki-public-loading-video { display: block; width: clamp(110px, 22vw, 210px); height: auto; }
+.linkki-public-content { width: 100%; }
+.linkki-public-content--waiting .profile-inner > * { animation-play-state: paused !important; }
+@media (prefers-reduced-motion: reduce) {
+  .linkki-public-loading { transition-duration: 100ms; }
+}

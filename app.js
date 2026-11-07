@@ -1829,11 +1829,37 @@ function linkkiPublicShareUrl(username) {
   return url.href;
 }
 
+// Fundo idêntico ao publicado, incluindo degradê; valida as cores antes de aplicar.
+function linkkiPublicBackground(profile) {
+  const first = validHex(profile?.customColors?.background, '#F7F8F3');
+  const second = validHex(profile?.gradientSecondColor, '#F2F5DF');
+  return profile?.backgroundMode === 'gradient'
+    ? `linear-gradient(180deg, ${first} 0%, ${second} 100%)` : first;
+}
+function linkkiReadPublicBackground(username) {
+  try {
+    const saved = JSON.parse(localStorage.getItem('linkki-public-backgrounds') || '{}')[username];
+    if (saved && (/^#[0-9a-f]{6}$/i.test(saved) || /^linear-gradient\(180deg, #[0-9a-f]{6} 0%, #[0-9a-f]{6} 100%\)$/i.test(saved))) return saved;
+  } catch (_) {}
+  return '#F7F8F3'; // Primeira visita: cor neutra até chegar a aparência publicada.
+}
+function linkkiSavePublicBackground(username, background) {
+  try {
+    const backgrounds = JSON.parse(localStorage.getItem('linkki-public-backgrounds') || '{}');
+    backgrounds[username] = background;
+    const names = Object.keys(backgrounds);
+    if (names.length > 30) delete backgrounds[names[0]];
+    localStorage.setItem('linkki-public-backgrounds', JSON.stringify(backgrounds));
+  } catch (_) {}
+}
+
 let publicRouteToken = 0;
 async function loadPublicRoute(username) {
   const token = ++publicRouteToken;
   const app = document.querySelector('#app');
-  app.innerHTML = '<main class="public-page"><div class="profile-canvas bg-light"><div class="profile-inner"><p class="public-bio">Carregando página...</p></div></div></main>';
+  // O último fundo publicado conhecido evita mudanças bruscas em visitas seguintes.
+  const cachedBackground = linkkiReadPublicBackground(username);
+  app.innerHTML = `<main class="public-page linkki-public-loading-page"><div class="linkki-public-loading" role="status" aria-label="Carregando página" style="background:${cachedBackground}"><video class="linkki-public-loading-video" src="./linkki-loading.webm" autoplay muted playsinline loop aria-hidden="true"></video></div></main>`;
   if (!authClient) { app.innerHTML = publicNotFound('Não foi possível carregar esta página.'); return; }
   let data, error;
   try { ({ data, error } = await authClient.from('linkki_public_pages').select('public_data').eq('username',username).maybeSingle()); }
@@ -1842,7 +1868,20 @@ async function loadPublicRoute(username) {
   if (error || !data?.public_data?.profile || !Array.isArray(data.public_data.links)) {
     app.innerHTML = publicNotFound(error ? 'Não foi possível carregar esta página.' : 'Esta página não está publicada.');
   } else {
-    app.innerHTML = `<main class="public-page">${publicProfileMarkup(data.public_data)}</main>`;
+    const background = linkkiPublicBackground(data.public_data.profile);
+    linkkiSavePublicBackground(username, background);
+    const loading = app.querySelector('.linkki-public-loading');
+    if (loading) loading.style.background = background;
+    // Insere o perfil sob o loading e só inicia suas animações na revelação.
+    app.insertAdjacentHTML('afterbegin', `<div class="linkki-public-content linkki-public-content--waiting">${publicProfileMarkup(data.public_data)}</div>`);
+    requestAnimationFrame(() => {
+      if (token !== publicRouteToken || !loading.isConnected) return;
+      const content = app.querySelector('.linkki-public-content');
+      if (content) content.classList.remove('linkki-public-content--waiting');
+      loading.classList.add('linkki-public-loading--leaving');
+      loading.addEventListener('transitionend', () => loading.remove(), { once: true });
+      setTimeout(() => { if (loading.isConnected) loading.remove(); }, 650);
+    });
     void trackPublicEvent(username, 'view');
   }
   bindEvents();
