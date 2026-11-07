@@ -2555,6 +2555,102 @@ function bindEvents() {
     });
   });
 
+
+// Modal próprio do Linkki para gerenciamento de páginas.
+function linkkiPageModal({ title, message = '', value, danger = false, confirmLabel = 'Confirmar' }) {
+  return new Promise(resolve => {
+    const existing = document.querySelector('.linkki-page-dialog-backdrop');
+    if (existing) existing.remove();
+    const previousFocus = document.activeElement;
+    const backdrop = document.createElement('div');
+    backdrop.className = 'linkki-page-dialog-backdrop';
+    const dialog = document.createElement('div');
+    dialog.className = 'linkki-page-dialog';
+    dialog.setAttribute('role', 'dialog');
+    dialog.setAttribute('aria-modal', 'true');
+    dialog.setAttribute('aria-labelledby', 'linkki-page-dialog-title');
+
+    const heading = document.createElement('h2');
+    heading.id = 'linkki-page-dialog-title';
+    heading.textContent = title;
+    dialog.append(heading);
+
+    if (message) {
+      const description = document.createElement('p');
+      description.className = 'linkki-page-dialog-description';
+      description.textContent = message;
+      dialog.append(description);
+    }
+
+    let input = null;
+    if (value !== undefined) {
+      const label = document.createElement('label');
+      label.className = 'linkki-page-dialog-label';
+      label.textContent = 'Novo nome da página';
+      input = document.createElement('input');
+      input.type = 'text';
+      input.className = 'linkki-page-dialog-input';
+      input.maxLength = 80;
+      input.value = value;
+      label.append(input);
+      dialog.append(label);
+    }
+
+    const actions = document.createElement('div');
+    actions.className = 'linkki-page-dialog-actions';
+    const cancel = document.createElement('button');
+    cancel.type = 'button';
+    cancel.className = 'linkki-page-dialog-cancel';
+    cancel.textContent = 'Cancelar';
+    const accept = document.createElement('button');
+    accept.type = 'button';
+    accept.className = 'linkki-page-dialog-accept' + (danger ? ' is-danger' : '');
+    accept.textContent = confirmLabel;
+    actions.append(cancel, accept);
+    dialog.append(actions);
+    backdrop.append(dialog);
+    document.body.append(backdrop);
+    const handleKey = event => {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        finish(null);
+      } else if (event.key === 'Tab') {
+        const focusable = [input, cancel, accept].filter(Boolean);
+        const index = focusable.indexOf(document.activeElement);
+        if (event.shiftKey && index <= 0) {
+          event.preventDefault();
+          focusable.at(-1).focus();
+        } else if (!event.shiftKey && index === focusable.length - 1) {
+          event.preventDefault();
+          focusable[0].focus();
+        }
+      } else if (event.key === 'Enter' && input && document.activeElement === input) {
+        event.preventDefault();
+        finish(input.value.trim());
+      }
+    };
+    let finished = false;
+    function finish(result) {
+      if (finished) return;
+      finished = true;
+      document.removeEventListener('keydown', handleKey, true);
+      backdrop.classList.remove('is-visible');
+      window.setTimeout(() => backdrop.remove(), 180);
+      if (previousFocus && previousFocus.isConnected) previousFocus.focus({ preventScroll: true });
+      resolve(result);
+    }
+    cancel.addEventListener('click', () => finish(null));
+    accept.addEventListener('click', () => finish(input ? input.value.trim() : true));
+    backdrop.addEventListener('click', event => {
+      if (event.target === backdrop) finish(null);
+    });
+    document.addEventListener('keydown', handleKey, true);
+    requestAnimationFrame(() => backdrop.classList.add('is-visible'));
+    (input || cancel).focus({ preventScroll: true });
+    if (input) input.select();
+  });
+}
+
   // Gerenciamento de páginas: menu contextual e seleção múltipla.
   const pageTrash = document.querySelector('[data-action="page-trash-mode"]');
   pageTrash?.addEventListener('click', () => {
@@ -2579,7 +2675,7 @@ function bindEvents() {
   async function linkkiDeletePages(ids) {
     const pages = state.userPages.filter(page => ids.includes(page.id));
     if (!pages.length) return;
-    if (!window.confirm(`Apagar permanentemente ${pages.length === 1 ? 'esta página' : `estas ${pages.length} páginas`}? Esta ação não pode ser desfeita.`)) return;
+    if (await linkkiPageModal({ title: 'Apagar página' + (pages.length > 1 ? 's' : '') + '?', message: pages.length === 1 ? 'Esta página será apagada permanentemente. Esta ação não pode ser desfeita.' : `Estas ${pages.length} páginas serão apagadas permanentemente. Esta ação não pode ser desfeita.`, danger: true, confirmLabel: 'Confirmar' }) !== true) return;
     if (pages.some(page => page.active)) {
       if (!cloudReady || !cloudUserId || !authClient) { showToast('Conecte-se para excluir a página publicada.'); return; }
       const { error } = await authClient.from('linkki_public_pages').delete().eq('user_id', cloudUserId);
@@ -2618,7 +2714,7 @@ function bindEvents() {
     menu.hidden = !shouldOpen;
     button.setAttribute('aria-expanded', String(shouldOpen));
   }));
-  document.querySelectorAll('[data-page-option]').forEach(button => button.addEventListener('click', () => {
+  document.querySelectorAll('[data-page-option]').forEach(button => button.addEventListener('click', async () => {
     const page = state.userPages.find(item => item.id === button.dataset.pageId);
     if (!page) return;
     const option = button.dataset.pageOption;
@@ -2628,7 +2724,7 @@ function bindEvents() {
       return;
     }
     if (option === 'rename') {
-      const title = window.prompt('Novo nome da página:', page.title);
+      const title = await linkkiPageModal({ title: 'Renomear página', value: page.title, confirmLabel: 'Confirmar' });
       if (title === null) return;
       if (!title.trim()) { showToast('Digite um nome para a página.'); return; }
       page.title = title.trim().slice(0, 80);

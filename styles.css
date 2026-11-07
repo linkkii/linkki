@@ -3848,3 +3848,40 @@ button.template-stat {
 @media (prefers-reduced-motion: reduce) {
   .editor-panel--community .community-nav-indicator { transition: none !important; }
 }
+
+
+/* Modal centralizado de renomear/excluir páginas */
+.linkki-page-dialog-backdrop {
+  position: fixed; inset: 0; z-index: 10050;
+  background: rgba(18, 28, 17, .32);
+  -webkit-backdrop-filter: blur(5px); backdrop-filter: blur(5px);
+  display: grid; place-items: center; padding: 20px;
+  opacity: 0; transition: opacity 180ms ease;
+}
+.linkki-page-dialog-backdrop.is-visible { opacity: 1; }
+.linkki-page-dialog {
+  width: min(100%, 420px); padding: 26px;
+  border: 1px solid rgba(42, 60, 36, .09);
+  border-radius: 22px; background: #fff;
+  box-shadow: 0 24px 80px rgba(14, 29, 14, .20);
+  transform: translateY(10px) scale(.98);
+  transition: transform 180ms ease;
+}
+.linkki-page-dialog-backdrop.is-visible .linkki-page-dialog { transform: none; }
+.linkki-page-dialog h2 { margin: 0 0 12px; color: #2a3c24; font-size: 21px; line-height: 1.2; }
+.linkki-page-dialog-description { margin: 0 0 22px; color: #667263; font-size: 13px; line-height: 1.55; }
+.linkki-page-dialog-label { display: grid; gap: 9px; margin: 18px 0 23px; font-size: 12px; color: #2a3c24; font-weight: 700; }
+.linkki-page-dialog-input { width: 100%; min-height: 44px; padding: 0 13px; border: 1px solid #d9ded5; border-radius: 11px; background: #f7f8f3; color: #2a3c24; font: inherit; font-size: 14px; }
+.linkki-page-dialog-input:focus { outline: 2px solid #a1c349; outline-offset: 2px; }
+.linkki-page-dialog-actions { display: flex; justify-content: flex-end; gap: 9px; }
+.linkki-page-dialog-actions button { border: 0; border-radius: 999px; padding: 11px 18px; min-width: 104px; cursor: pointer; font: inherit; font-size: 13px; font-weight: 750; }
+.linkki-page-dialog-cancel { background: #f1f3ec; color: #2a3c24; }
+.linkki-page-dialog-accept { background: #a1c349; color: #2a3c24; }
+.linkki-page-dialog-accept.is-danger { background: #d54545; color: white; }
+@media (max-width: 420px) {
+  .linkki-page-dialog { padding: 20px; }
+  .linkki-page-dialog-actions button { min-width: 0; flex: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .linkki-page-dialog-backdrop, .linkki-page-dialog { transition: none; }
+}
