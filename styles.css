@@ -3718,3 +3718,19 @@ button.template-stat {
 
 .linkki-background-row { flex-wrap:wrap; }
 .linkki-background-gallery { flex:0 0 100%; }
+
+/* Foto Hero: slider cinza com bolinha verde, como os ajustes de sombra. */
+.linkki-hero-size-control { margin-top: 16px; max-width: 350px; }
+.linkki-hero-size-control .range-control input[type="range"] {
+  display: block; width: 100%; height: 7px; padding: 0; border: 0;
+  border-radius: 999px; background: #d5d7d3; appearance: none;
+  -webkit-appearance: none; outline: none; cursor: pointer;
+}
+.linkki-hero-size-control input[type="range"]::-webkit-slider-thumb {
+  appearance: none; -webkit-appearance: none; width: 21px; height: 21px;
+  border: 0; border-radius: 50%; background: #a1c349; cursor: grab;
+}
+.linkki-hero-size-control input[type="range"]::-moz-range-thumb {
+  width: 21px; height: 21px; border: 0; border-radius: 50%;
+  background: #a1c349; cursor: grab;
+}
