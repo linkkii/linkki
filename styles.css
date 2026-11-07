@@ -3814,3 +3814,25 @@ button.template-stat {
 @keyframes linkkiPagePopoverIn {from{opacity:0;transform:translateY(-5px) scale(.96)}to{opacity:1;transform:translateY(0) scale(1)}}
 @media (prefers-reduced-motion:reduce){.linkki-page-popover{animation:none}}
 @media (max-width:540px){.linkki-page-header-actions{gap:5px}.linkki-select-all{font-size:11px}.linkki-delete-pill{font-size:11px;padding:8px 11px}}
+
+/* Abas da comunidade: destaque verde desliza sem recriar o cabeçalho. */
+.editor-panel--community .community-nav { position: relative; isolation: isolate; }
+.editor-panel--community .community-nav-indicator {
+  position: absolute; top: 5px; left: 5px; height: calc(100% - 10px);
+  border-radius: 999px; background: var(--leaf); z-index: -1;
+  transition: transform 360ms cubic-bezier(.22, 1, .36, 1), width 360ms cubic-bezier(.22, 1, .36, 1);
+  pointer-events: none;
+}
+.editor-panel--community .community-nav-button { position: relative; z-index: 1; transition: color 200ms ease; }
+.editor-panel--community .community-nav-button.is-active { background: transparent; }
+.editor-panel--community .community-dynamic-results .community-section-title,
+.editor-panel--community .community-dynamic-results .community-grid > *,
+.editor-panel--community .community-dynamic-results .community-empty {
+  animation: linkki-community-fade-down 500ms cubic-bezier(.22, 1, .36, 1) both;
+}
+@media (prefers-reduced-motion: reduce) {
+  .editor-panel--community .community-nav-indicator { transition: none !important; }
+  .editor-panel--community .community-dynamic-results .community-section-title,
+  .editor-panel--community .community-dynamic-results .community-grid > *,
+  .editor-panel--community .community-dynamic-results .community-empty { animation: none !important; }
+}

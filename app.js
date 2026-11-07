@@ -258,6 +258,8 @@ function syncCurrentPageSnapshot() {
   current.active = Boolean(state.profile.published);
   current.appearance = appearanceSnapshot(state.profile);
   current.profileAvatar = state.profile.avatar || "";
+  current.avatarLayout = state.profile.avatarLayout || "classic";
+  current.bannerImage = state.profile.bannerImage || "";
   current.previewLinks = state.links.filter(link => link.visible).map(link => ({ title: link.title }));
 }
 
@@ -1482,9 +1484,35 @@ function templatePreviewMarkup(item) {
   `;
 }
 
+// Fotos das prévias: a comunidade recebe uma versão leve da imagem do criador.
+// A foto é exclusiva da apresentação do modelo e nunca é aplicada à conta de terceiros.
+async function linkkiTemplatePreviewImage(value) {
+  const src = safeImageSrc(value);
+  if (!src || !src.startsWith('data:image/')) return src;
+  return new Promise(resolve => {
+    const picture = new Image();
+    picture.onload = () => {
+      try {
+        const maximum = 560;
+        const ratio = Math.min(1, maximum / Math.max(picture.naturalWidth, picture.naturalHeight));
+        const canvas = document.createElement('canvas');
+        canvas.width = Math.max(1, Math.round(picture.naturalWidth * ratio));
+        canvas.height = Math.max(1, Math.round(picture.naturalHeight * ratio));
+        const ctx = canvas.getContext('2d');
+        if (!ctx) { resolve(src); return; }
+        ctx.drawImage(picture, 0, 0, canvas.width, canvas.height);
+        resolve(canvas.toDataURL('image/jpeg', .76));
+      } catch { resolve(src); }
+    };
+    picture.onerror = () => resolve(src);
+    picture.src = src;
+  });
+}
+
 function communityNav() {
   return `
-    <div class="community-nav" role="tablist" aria-label="Seções da comunidade">
+    <div class="community-nav" role="tablist" aria-label="Seções da comunidade" data-community-current="${state.communityView}">
+      <span class="community-nav-indicator" aria-hidden="true"></span>
       <button class="community-nav-button ${state.communityView === "discover" ? "is-active" : ""}" data-community-view="discover" role="tab" aria-selected="${state.communityView === "discover"}">Descobrir</button>
       <button class="community-nav-button ${state.communityView === "mine" ? "is-active" : ""}" data-community-view="mine" role="tab" aria-selected="${state.communityView === "mine"}">Meus modelos</button>
     </div>
@@ -1537,7 +1565,10 @@ async function loadCommunityTemplates() {
     username: item.appearance?.previewSnapshot?.username || '',
     previewLinks: item.appearance?.previewSnapshot?.links || null
   }));
-  if (location.hash.replace(/^#\/?/, '') === 'editor' && state.activeSection === 'community') render();
+  if (location.hash.replace(/^#\/?/, '') === 'editor' && state.activeSection === 'community') {
+    if (document.querySelector('#linkki-community-results')) linkkiRefreshCommunityResults();
+    else render();
+  }
 }
 async function communityAction(action, payload, successMessage) {
   if (communityBusy || !authClient || !cloudUserId || !cloudReady) return;
@@ -1553,6 +1584,85 @@ async function communityAction(action, payload, successMessage) {
     showToast('Não foi possível concluir. Tente novamente.');
     return null;
   } finally { communityBusy = false; }
+}
+
+// Troca apenas os resultados das abas. Cabeçalho, banner e seleção permanecem montados.
+function communityTabResultsMarkup(publishedTemplates, myPublishedTemplates) {
+  if (state.communityView === 'mine') {
+    return myPublishedTemplates.length
+      ? `<div class="community-section-title"><div><h2>Meus modelos</h2><p>Modelos que você publicou.</p></div><span>${myPublishedTemplates.length} modelos</span></div><div class="community-grid">${myPublishedTemplates.map(template => communityTemplateCard(template, true)).join('')}</div>`
+      : `<div class="community-empty"><span>木</span><strong>Nenhum modelo publicado</strong><p>Transforme uma das suas páginas em inspiração para a comunidade.</p><button class="button button--primary" data-community-view="publish">Publicar meu primeiro modelo</button></div>`;
+  }
+  return `<div class="community-section-title"><div><h2>Em destaque</h2><p>Modelos que a comunidade está usando agora.</p></div><span>${publishedTemplates.length} modelos</span></div>
+    ${publishedTemplates.length ? `<div class="community-grid">${publishedTemplates.map(template => communityTemplateCard(template)).join('')}</div>` : `<div class="community-empty"><span>木</span><strong>A comunidade está começando!</strong><p>Seja uma das primeiras pessoas a publicar um modelo.</p><button class="button button--primary" data-community-view="publish">Publicar modelo</button></div>`}`;
+}
+
+// Alinha o indicador às dimensões reais da aba selecionada, sem saltar de posição.
+function linkkiMoveCommunityIndicator(animate = true) {
+  const nav = document.querySelector('.editor-panel--community .community-nav');
+  if (!nav) return;
+  const selected = nav.querySelector(`[data-community-view="${state.communityView}"]`);
+  const indicator = nav.querySelector('.community-nav-indicator');
+  if (!selected || !indicator) return;
+  if (!animate) indicator.style.transition = 'none';
+  indicator.style.width = `${selected.offsetWidth}px`;
+  indicator.style.transform = `translateX(${selected.offsetLeft - nav.clientLeft - 5}px)`;
+  if (!animate) requestAnimationFrame(() => { indicator.style.transition = ''; });
+}
+
+function linkkiRefreshCommunityResults() {
+  const results = document.querySelector('#linkki-community-results');
+  if (!results) return;
+  const published = state.communityTemplates.filter(item => item.published);
+  const mine = published.filter(item => item.ownerId === 'self');
+  results.innerHTML = communityTabResultsMarkup(published, mine);
+  document.querySelectorAll('.community-nav-button').forEach(button => {
+    const active = button.dataset.communityView === state.communityView;
+    button.classList.toggle('is-active', active);
+    button.setAttribute('aria-selected', String(active));
+  });
+  linkkiMoveCommunityIndicator();
+  linkkiBindCommunityResults(results);
+}
+
+function linkkiBindCommunityResults(results) {
+  results.querySelectorAll('[data-community-view]').forEach(button => {
+    button.addEventListener('click', () => { state.communityView = button.dataset.communityView; saveState(); render(); });
+  });
+  results.querySelectorAll('[data-action="like-template"]').forEach(button => {
+    button.addEventListener('click', async () => {
+      await communityAction('linkki_community_toggle_like', { p_template_id: button.dataset.templateId });
+    });
+  });
+  results.querySelectorAll('[data-action="apply-template"]').forEach(button => {
+    button.addEventListener('click', async () => {
+      const template = state.communityTemplates.find(item => item.id === button.dataset.templateId && item.published);
+      if (!template) return;
+      const applied = await communityAction('linkki_community_apply', { p_template_id: template.id });
+      if (!applied) return;
+      const appearance = JSON.parse(JSON.stringify(template.appearance));
+      state.profile.customColors = appearance.customColors;
+      state.profile.backgroundMode = appearance.backgroundMode || 'solid';
+      state.profile.gradientSecondColor = appearance.gradientSecondColor || '#F2F5DF';
+      state.profile.backgroundImage = linkkiSafeBackgroundImage(appearance.backgroundImage);
+      state.profile.elementAnimation = appearance.elementAnimation || 'none';
+      state.profile.buttonStyle = appearance.buttonStyle;
+      state.profile.buttonBorder = appearance.buttonBorder;
+      state.profile.buttonShadow = appearance.buttonShadow;
+      state.profile.titleFont = appearance.titleFont;
+      state.profile.bodyFont = appearance.bodyFont;
+      state.profile.background = 'custom';
+      state.activeSection = 'editor';
+      state.activeTab = 'appearance';
+      saveState(); render();
+      showToast('Modelo aplicado. Seus links e informações foram preservados.');
+    });
+  });
+  results.querySelectorAll('[data-action="unpublish-template"]').forEach(button => {
+    button.addEventListener('click', async () => {
+      await communityAction('linkki_community_remove', { p_template_id: button.dataset.templateId }, 'Publicação removida. Sua página continua salva.');
+    });
+  });
 }
 
 function communityPanel() {
@@ -1591,25 +1701,6 @@ function communityPanel() {
     `;
   }
 
-  if (state.communityView === "mine") {
-    return `
-      <div class="panel-header community-panel-header">
-        <div><h1>Comunidade</h1><p>Gerencie os modelos que você compartilhou.</p></div>
-        <button class="button button--accent" data-community-view="publish">+ Publicar modelo</button>
-      </div>
-      ${communityNav()}
-      ${myPublishedTemplates.length ? `
-        <div class="community-grid">${myPublishedTemplates.map((template) => communityTemplateCard(template, true)).join("")}</div>
-      ` : `
-        <div class="community-empty">
-          <span>木</span><strong>Nenhum modelo publicado</strong>
-          <p>Transforme uma das suas páginas em inspiração para a comunidade.</p>
-          <button class="button button--primary" data-community-view="publish">Publicar meu primeiro modelo</button>
-        </div>
-      `}
-    `;
-  }
-
   return `
     <div class="panel-header community-panel-header">
       <div><h1>Comunidade</h1><p>Descubra modelos criados por pessoas da Linkki e adapte ao seu conteúdo.</p></div>
@@ -1620,8 +1711,7 @@ function communityPanel() {
       <div><span>MODELOS DA COMUNIDADE</span><h2>Encontre um ponto de partida e deixe com a sua cara.</h2></div>
       <strong>${formatCount(publishedTemplates.reduce((sum, template) => sum + template.uses, 0))}<small>aplicações</small></strong>
     </section>
-    <div class="community-section-title"><div><h2>Em destaque</h2><p>Modelos que a comunidade está usando agora.</p></div><span>${publishedTemplates.length} modelos</span></div>
-    ${publishedTemplates.length ? `<div class="community-grid">${publishedTemplates.map((template) => communityTemplateCard(template)).join("")}</div>` : `<div class="community-empty"><span>木</span><strong>A comunidade está começando!</strong><p>Seja uma das primeiras pessoas a publicar um modelo.</p><button class="button button--primary" data-community-view="publish">Publicar modelo</button></div>`}
+    <div class="community-dynamic-results" id="linkki-community-results">${communityTabResultsMarkup(publishedTemplates, myPublishedTemplates)}</div>
   `;
 }
 
@@ -2591,46 +2681,21 @@ function bindEvents() {
     });
   });
 
-  document.querySelectorAll("[data-community-view]").forEach((button) => {
+  document.querySelectorAll(".community-nav [data-community-view], .community-panel-header [data-community-view], .back-link[data-community-view]").forEach((button) => {
     button.addEventListener("click", () => {
       state.communityView = button.dataset.communityView;
       saveState();
-      render();
-      void loadCommunityTemplates();
+      if (['discover', 'mine'].includes(state.communityView) && document.querySelector('#linkki-community-results')) {
+        linkkiRefreshCommunityResults();
+      } else {
+        render();
+      }
     });
   });
 
-  document.querySelectorAll('[data-action="like-template"]').forEach(button => {
-    button.addEventListener('click', async () => {
-      await communityAction('linkki_community_toggle_like', { p_template_id: button.dataset.templateId });
-    });
-  });
-
-  document.querySelectorAll('[data-action="apply-template"]').forEach(button => {
-    button.addEventListener('click', async () => {
-      const template = state.communityTemplates.find(item => item.id === button.dataset.templateId && item.published);
-      if (!template) return;
-      const applied = await communityAction('linkki_community_apply', { p_template_id: template.id });
-      if (!applied) return;
-      const appearance = JSON.parse(JSON.stringify(template.appearance));
-      state.profile.customColors = appearance.customColors;
-      state.profile.backgroundMode = appearance.backgroundMode || 'solid';
-      state.profile.gradientSecondColor = appearance.gradientSecondColor || '#F2F5DF';
-      state.profile.backgroundImage = linkkiSafeBackgroundImage(appearance.backgroundImage);
-      state.profile.elementAnimation = appearance.elementAnimation || 'none';
-      state.profile.buttonStyle = appearance.buttonStyle;
-      state.profile.buttonBorder = appearance.buttonBorder;
-      state.profile.buttonShadow = appearance.buttonShadow;
-      state.profile.titleFont = appearance.titleFont;
-      state.profile.bodyFont = appearance.bodyFont;
-      state.profile.background = 'custom';
-      state.activeSection = 'editor';
-      state.activeTab = 'appearance';
-      saveState();
-      render();
-      showToast('Modelo aplicado. Seus links e informações foram preservados.');
-    });
-  });
+  const communityResults = document.querySelector('#linkki-community-results');
+  if (communityResults) linkkiBindCommunityResults(communityResults);
+  if (communityResults) linkkiMoveCommunityIndicator(false);
 
   document.querySelectorAll('[data-action="publish-page-template"]').forEach(button => {
     button.addEventListener('click', async () => {
@@ -2639,30 +2704,43 @@ function bindEvents() {
       if (!page) return;
       const author = cloudUserId === LINKKI_OFFICIAL_USER_ID ? 'Linkki' : (`${state.account.firstName || ''} ${state.account.lastName || ''}`.trim() || state.profile.name || 'Você');
       const category = accountCategories.find(([id]) => id === state.account.category)?.[2] || 'Criadores';
+      const previewAvatar = await linkkiTemplatePreviewImage(page.profileAvatar || state.profile.avatar || '');
+      const previewBanner = await linkkiTemplatePreviewImage(page.bannerImage || state.profile.bannerImage || '');
+      const previewAppearance = page.appearance ? { ...state.profile, ...page.appearance } : state.profile;
+      const previewSnapshot = {
+        avatar: previewAvatar,
+        bannerImage: previewBanner,
+        avatarLayout: page.avatarLayout || state.profile.avatarLayout || 'classic',
+        heroPhotoZoom: previewAppearance.heroPhotoZoom ?? 100,
+        heroPhotoX: previewAppearance.heroPhotoX ?? 50,
+        heroPhotoY: previewAppearance.heroPhotoY ?? 50,
+        name: page.profileName || state.profile.name || '',
+        username: page.username || state.account.username || state.profile.username || '',
+        links: (page.previewLinks || state.links.filter(link => link.visible)).slice(0, 5).map(link => ({title: link.title}))
+      };
       const result = await communityAction('linkki_community_publish', {
         p_source_page_id: page.id, p_title: page.title, p_author: author,
         p_category: category, p_appearance: {
-          ...appearanceSnapshot(page.appearance ? { ...state.profile, ...page.appearance } : state.profile),
-          previewSnapshot: {
-            avatar: state.profile.avatar || '',
-            bannerImage: state.profile.bannerImage || '',
-            avatarLayout: state.profile.avatarLayout || 'classic',
-            heroPhotoZoom: state.profile.heroPhotoZoom ?? 100,
-            heroPhotoX: state.profile.heroPhotoX ?? 50,
-            heroPhotoY: state.profile.heroPhotoY ?? 50,
-            name: page.profileName || state.profile.name || '',
-            username: state.account.username || state.profile.username || '',
-            links: state.links.filter(link => link.visible).slice(0, 5).map(link => ({title: link.title}))
-          }
+          ...appearanceSnapshot(previewAppearance),
+          previewSnapshot
         }
-      }, 'Modelo publicado na comunidade.');
-      if (result) { state.communityView = 'mine'; render(); }
-    });
-  });
-
-  document.querySelectorAll('[data-action="unpublish-template"]').forEach(button => {
-    button.addEventListener('click', async () => {
-      await communityAction('linkki_community_remove', { p_template_id: button.dataset.templateId }, 'Publicação removida. Sua página continua salva.');
+      });
+      if (result) {
+        // Lê novamente o registro real devolvido pelo Supabase, sem assumir
+        // que a função SQL tenha conservado os campos de imagem.
+        const saved = state.communityTemplates.find(t =>
+          t.ownerId === 'self' && t.sourcePageId === page.id && t.published);
+        const serverPreview = saved?.appearance?.previewSnapshot;
+        if ((previewAvatar || previewBanner) &&
+            (!serverPreview || (previewAvatar && !safeImageSrc(serverPreview.avatar)) ||
+             (previewBanner && !safeImageSrc(serverPreview.bannerImage)))) {
+          console.warn('Linkki: a função SQL da comunidade não devolveu a foto da prévia.', {saved});
+          showToast('Modelo publicado, mas o Supabase não guardou a foto da prévia. É necessário corrigir a função de publicação no banco.');
+        } else {
+          showToast('Modelo publicado na comunidade.');
+        }
+        state.communityView = 'mine'; render();
+      }
     });
   });
 
