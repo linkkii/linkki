@@ -3734,3 +3734,8 @@ button.template-stat {
   width: 21px; height: 21px; border: 0; border-radius: 50%;
   background: #a1c349; cursor: grab;
 }
+
+/* Imagem de fundo: seção independente de Cores */
+.linkki-background-image-card .linkki-background-gallery { margin-top:14px; padding-top:14px; }
+.linkki-background-image-toggle { display:inline-flex; align-items:center; gap:9px; font-size:13px; font-weight:650; color:var(--root); cursor:pointer; }
+.linkki-background-image-toggle input { accent-color:#a1c349; width:17px; height:17px; }

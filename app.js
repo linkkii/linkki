@@ -1315,21 +1315,12 @@ function appearancePanel() {
                   <span class="direct-color-control"><input type="color" data-gradient-picker value="${validHex(state.profile.gradientSecondColor, "#F2F5DF")}" aria-label="Segunda cor do gradiente" /><input class="hex-input" data-gradient-field value="${escapeHtml(state.profile.gradientSecondColor || "#F2F5DF")}" maxlength="7" aria-label="Código da segunda cor" /></span>
                 </span>
               </label>
-              <label class="linkki-background-option linkki-background-option--image">
-                <span class="linkki-background-heading"><input type="radio" name="linkki-background-mode" value="image" data-background-radio ${state.profile.backgroundMode === "image" ? "checked" : ""} /><strong>Imagem</strong></span>
-              </label>
               <label class="linkki-background-option linkki-background-option--solid">
-                <span class="linkki-background-heading"><input type="radio" name="linkki-background-mode" value="solid" data-background-radio ${state.profile.backgroundMode !== "gradient" ? "checked" : ""} /><strong>Cor sólida</strong></span>
+                <span class="linkki-background-heading"><input type="radio" name="linkki-background-mode" value="solid" data-background-radio ${state.profile.backgroundMode === "solid" ? "checked" : ""} /><strong>Cor sólida</strong></span>
                 <span class="linkki-background-swatches">
                   <span class="direct-color-control"><input type="color" data-solid-color-picker value="${validHex(state.profile.customColors.background, "#CAD593")}" aria-label="Cor sólida do fundo" /><input class="hex-input" data-solid-color-field value="${escapeHtml(state.profile.customColors.background)}" maxlength="7" aria-label="Código da cor sólida" /></span>
                 </span>
               </label>
-            </div>
-            <div class="linkki-background-gallery">
-              <div class="linkki-background-gallery-title">Imagens do Linkki</div>
-              <div class="linkki-background-gallery-grid">${linkkiBackgroundPresets.map(p => `<button type="button" class="linkki-background-preset ${state.profile.backgroundMode === 'image' && state.profile.backgroundImage === p.file ? 'is-selected' : ''}" data-background-preset="${p.id}" aria-label="Usar fundo ${p.name}" title="${p.name}"><img src="${p.file}" alt="" loading="lazy"/><span>${p.name}</span></button>`).join('')}</div>
-              <div class="linkki-background-upload-actions"><label class="button button--ghost button--small" for="linkki-background-upload">Enviar minha imagem</label><input id="linkki-background-upload" type="file" accept="image/jpeg,image/png,image/webp" hidden />${state.profile.backgroundImage ? `<button type="button" class="button button--ghost button--small" data-action="remove-background-image">Remover imagem</button>` : ''}</div>
-              <small>Imagem vertical ou horizontal. A foto será ajustada para preencher o fundo.</small>
             </div>
           </div>` : `
           <div class="direct-color-row">
@@ -1341,6 +1332,17 @@ function appearancePanel() {
           </div>
         `).join("")}
       </div>
+    </section>
+
+    <section class="card linkki-background-image-card">
+      <div class="card-title"><h2>Imagem de fundo</h2></div>
+      <label class="linkki-background-image-toggle"><input type="radio" name="linkki-background-mode" value="image" data-background-radio ${state.profile.backgroundMode === "image" ? "checked" : ""} /><span>Usar imagem como fundo da página</span></label>
+            <div class="linkki-background-gallery">
+              <div class="linkki-background-gallery-title">Imagens do Linkki</div>
+              <div class="linkki-background-gallery-grid">${linkkiBackgroundPresets.map(p => `<button type="button" class="linkki-background-preset ${state.profile.backgroundMode === 'image' && state.profile.backgroundImage === p.file ? 'is-selected' : ''}" data-background-preset="${p.id}" aria-label="Usar fundo ${p.name}" title="${p.name}"><img src="${p.file}" alt="" loading="lazy"/><span>${p.name}</span></button>`).join('')}</div>
+              <div class="linkki-background-upload-actions"><label class="button button--ghost button--small" for="linkki-background-upload">Enviar minha imagem</label><input id="linkki-background-upload" type="file" accept="image/jpeg,image/png,image/webp" hidden />${state.profile.backgroundImage ? `<button type="button" class="button button--ghost button--small" data-action="remove-background-image">Remover imagem</button>` : ''}</div>
+              <small>Imagem vertical ou horizontal. A foto será ajustada para preencher o fundo.</small>
+            </div>
     </section>
 
     <section class="card">
