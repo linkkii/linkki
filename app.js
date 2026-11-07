@@ -1767,7 +1767,7 @@ function myPagesPanel() {
     <div class="panel-header section-panel-header">
       <div><span class="section-eyebrow">PÁGINAS</span><h1>Minhas páginas</h1></div>
       <div class="linkki-page-header-actions">
-        <button class="linkki-page-trash" type="button" data-action="page-trash-mode" aria-label="Selecionar páginas para excluir" title="Selecionar páginas para excluir">${linkkiPageDeleteMode ? 'Cancelar' : '♲'}</button>
+        <button class="linkki-page-trash" type="button" data-action="page-trash-mode" aria-label="Selecionar páginas para excluir" title="Selecionar páginas para excluir">${linkkiPageDeleteMode ? 'Cancelar' : '<svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18M8 6V4h8v2m3 0-1 14H6L5 6m5 4v7m4-7v7"/></svg>'}</button>
         ${linkkiPageDeleteMode ? `<button class="linkki-select-all" type="button" data-action="page-select-all">Selecionar tudo</button><button class="linkki-delete-pill" type="button" data-action="page-delete-selected" ${linkkiSelectedPageIds.size ? '' : 'disabled'}>Apagar permanentemente${linkkiSelectedPageIds.size ? ` (${linkkiSelectedPageIds.size})` : ''}</button>` : `<button class="button button--accent" data-action="create-page">+ Nova página</button>`}
       </div>
     </div>

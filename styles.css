@@ -3795,3 +3795,22 @@ button.template-stat {
 .linkki-page-selection input:checked+span{background:#9fc544;border-color:#9fc544}
 .linkki-page-selection input:checked+span:after{content:'✓';display:grid;place-items:center;color:#fff;font-weight:900}
 .linkki-page-selection input:focus-visible+span{outline:3px solid #9fc544;outline-offset:3px}
+
+
+/* Refinamento visual do gerenciamento de páginas: nenhuma regra funcional alterada. */
+.linkki-page-header-actions { gap: 8px; }
+.linkki-page-trash { display:inline-flex; align-items:center; justify-content:center; min-width:30px; min-height:30px; padding:4px 6px; font-size:14px; font-weight:600; }
+.linkki-page-trash svg {display:block;flex:none;}
+.linkki-select-all {font-size:12px; font-weight:700; padding:6px 8px;}
+.linkki-delete-pill {font-size:12px; padding:9px 14px; line-height:1.2; font-weight:700;}
+.linkki-page-selection {top:11px; right:11px;}
+.linkki-page-selection input {width:24px;height:24px;}
+.linkki-page-selection span {width:23px;height:23px;border-width:1.5px;}
+.linkki-page-selection input:checked + span:after {font-size:12px;line-height:20px;}
+.linkki-page-dots {width:30px;height:30px;font-size:21px;}
+.linkki-page-menu-wrap {top:10px;right:10px;}
+.linkki-page-popover {top:36px;min-width:174px;padding:5px;border-radius:12px;gap:0;transform-origin:top right;animation:linkkiPagePopoverIn 180ms cubic-bezier(.2,.8,.2,1) both;}
+.linkki-page-popover button {font-size:12px;padding:9px 10px;border-radius:8px;}
+@keyframes linkkiPagePopoverIn {from{opacity:0;transform:translateY(-5px) scale(.96)}to{opacity:1;transform:translateY(0) scale(1)}}
+@media (prefers-reduced-motion:reduce){.linkki-page-popover{animation:none}}
+@media (max-width:540px){.linkki-page-header-actions{gap:5px}.linkki-select-all{font-size:11px}.linkki-delete-pill{font-size:11px;padding:8px 11px}}
