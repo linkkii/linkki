@@ -144,6 +144,7 @@ const defaultState = {
     background: "custom",
     backgroundMode: "solid",
     gradientSecondColor: "#F2F5DF",
+    backgroundImage: "",
     elementAnimation: "none",
     buttonStyle: "rounded",
     titleFont: "system",
@@ -195,6 +196,7 @@ function appearanceSnapshot(profile) {
     customColors: JSON.parse(JSON.stringify(profile.customColors)),
     backgroundMode: profile.backgroundMode || "solid",
     gradientSecondColor: profile.gradientSecondColor || "#F2F5DF",
+    backgroundImage: linkkiSafeBackgroundImage(profile.backgroundImage),
     elementAnimation: profile.elementAnimation || "none",
     heroPhotoZoom: profile.heroPhotoZoom ?? 100,
     heroPhotoX: profile.heroPhotoX ?? 50,
@@ -397,7 +399,7 @@ function reportCloudError(error) {
 // Apenas os campos destinados à página pública são enviados para esta tabela.
 function publicPageSnapshot() {
   const profile = structuredClone(state.profile);
-  const allowed = ['name','username','bio','avatar','avatarLayout','bannerImage','heroPhotoZoom','heroPhotoX','heroPhotoY','avatarBorder','customColors','backgroundMode','gradientSecondColor','elementAnimation','buttonStyle','buttonBorder','buttonShadow','titleFont','bodyFont','customFonts'];
+  const allowed = ['name','username','bio','avatar','avatarLayout','bannerImage','heroPhotoZoom','heroPhotoX','heroPhotoY','avatarBorder','customColors','backgroundMode','gradientSecondColor','backgroundImage','elementAnimation','buttonStyle','buttonBorder','buttonShadow','titleFont','bodyFont','customFonts'];
   const safeProfile = Object.fromEntries(allowed.filter(k => Object.hasOwn(profile,k)).map(k => [k,profile[k]]));
   return { profile: safeProfile, links: state.links.filter(link => link.visible).map(link => ({ id: link.id, title: link.title, url: link.url, visible: true })) };
 }
@@ -412,7 +414,7 @@ async function syncPublicPage(owner, snapshot) {
     return;
   }
   const { error } = await authClient.from('linkki_public_pages').upsert({
-    user_id: owner, username, public_data: { profile: Object.fromEntries(['name','username','bio','avatar','avatarLayout','bannerImage','heroPhotoZoom','heroPhotoX','heroPhotoY','avatarBorder','customColors','backgroundMode','gradientSecondColor','elementAnimation','buttonStyle','buttonBorder','buttonShadow','titleFont','bodyFont','customFonts'].filter(k => Object.hasOwn(snapshot.profile,k)).map(k => [k,snapshot.profile[k]])), links: snapshot.links.filter(link => link.visible).map(link => ({ id: link.id, title: link.title, url: link.url, visible: true })) }, updated_at: new Date().toISOString()
+    user_id: owner, username, public_data: { profile: Object.fromEntries(['name','username','bio','avatar','avatarLayout','bannerImage','heroPhotoZoom','heroPhotoX','heroPhotoY','avatarBorder','customColors','backgroundMode','gradientSecondColor','backgroundImage','elementAnimation','buttonStyle','buttonBorder','buttonShadow','titleFont','bodyFont','customFonts'].filter(k => Object.hasOwn(snapshot.profile,k)).map(k => [k,snapshot.profile[k]])), links: snapshot.links.filter(link => link.visible).map(link => ({ id: link.id, title: link.title, url: link.url, visible: true })) }, updated_at: new Date().toISOString()
   }, { onConflict: 'user_id' });
   if (error) throw error;
 }
@@ -420,7 +422,7 @@ async function syncPublicPage(owner, snapshot) {
 function publicPublishPayload() {
   const snapshot = editableSnapshot();
   const profile = snapshot.profile;
-  const allowed = ['name','username','bio','avatar','avatarLayout','bannerImage','heroPhotoZoom','heroPhotoX','heroPhotoY','avatarBorder','customColors','backgroundMode','gradientSecondColor','elementAnimation','buttonStyle','buttonBorder','buttonShadow','titleFont','bodyFont','customFonts'];
+  const allowed = ['name','username','bio','avatar','avatarLayout','bannerImage','heroPhotoZoom','heroPhotoX','heroPhotoY','avatarBorder','customColors','backgroundMode','gradientSecondColor','backgroundImage','elementAnimation','buttonStyle','buttonBorder','buttonShadow','titleFont','bodyFont','customFonts'];
   return {
     profile: Object.fromEntries(allowed.filter(k => Object.hasOwn(profile,k)).map(k => [k,profile[k]])),
     links: snapshot.links.filter(link => link.visible).map(link => ({ id: link.id, title: link.title, url: link.url, visible: true }))
@@ -1034,6 +1036,31 @@ function buttonShadowValue(shadow = state.profile.buttonShadow) {
   return `${x}px ${y}px ${blur}px rgba(0,0,0,${opacity})`;
 }
 
+
+// Fundos oficiais locais e imagens enviadas pelo usuario (sem URLs arbitrarias).
+const linkkiBackgroundPresets = [
+  { id: 'aurora', name: 'Aurora', file: './fundos/aurora.svg' },
+  { id: 'ondas', name: 'Ondas', file: './fundos/ondas.svg' },
+  { id: 'dunas', name: 'Dunas', file: './fundos/dunas.svg' },
+  { id: 'noite', name: 'Noite', file: './fundos/noite.svg' }
+];
+function linkkiSafeBackgroundImage(value) {
+  const image = String(value || '');
+  if (linkkiBackgroundPresets.some(p => p.file === image)) return image;
+  if (/^data:image\/jpeg;base64,[a-z0-9+/=]+$/i.test(image) && image.length < 600000) return image;
+  return '';
+}
+function linkkiBackgroundCss(profile) {
+  const first = validHex(profile?.customColors?.background, '#CAD593');
+  const second = validHex(profile?.gradientSecondColor, '#F2F5DF');
+  if (profile?.backgroundMode === 'image') {
+    const image = linkkiSafeBackgroundImage(profile.backgroundImage);
+    if (image) return `url("${image}") center center / cover no-repeat`;
+  }
+  return profile?.backgroundMode === 'gradient'
+    ? `linear-gradient(180deg, ${first} 0%, ${second} 100%)` : first;
+}
+
 function publicProfileMarkup(page = { profile: state.profile, links: state.links }) {
   const profile = page.profile;
   const visibleLinks = page.links.filter((link) => link.visible);
@@ -1059,7 +1086,7 @@ function publicProfileMarkup(page = { profile: state.profile, links: state.links
     `--button-shadow:${buttonShadowValue(profile.buttonShadow)}`,
     `--title-font:${fontCssValue(profile.titleFont, profile)}`,
     `--body-font:${fontCssValue(profile.bodyFont, profile)}`,
-    `background:${mode === "gradient" ? `linear-gradient(180deg, ${bg} 0%, ${second} 100%)` : bg}`,
+    `background:${linkkiBackgroundCss(profile)}`,
   ].join(";");
   const customFontStyle = (profile.customFonts || []).length
     ? `<style>${(profile.customFonts || []).filter((font) => safeFontData(font.dataUrl)).map((font) => `@font-face{font-family:"${customFontFamily(font.id)}";src:url("${safeFontData(font.dataUrl)}")}`).join("")}</style>`
@@ -1295,12 +1322,21 @@ function appearancePanel() {
                   <span class="direct-color-control"><input type="color" data-gradient-picker value="${validHex(state.profile.gradientSecondColor, "#F2F5DF")}" aria-label="Segunda cor do gradiente" /><input class="hex-input" data-gradient-field value="${escapeHtml(state.profile.gradientSecondColor || "#F2F5DF")}" maxlength="7" aria-label="Código da segunda cor" /></span>
                 </span>
               </label>
+              <label class="linkki-background-option linkki-background-option--image">
+                <span class="linkki-background-heading"><input type="radio" name="linkki-background-mode" value="image" data-background-radio ${state.profile.backgroundMode === "image" ? "checked" : ""} /><strong>Imagem</strong></span>
+              </label>
               <label class="linkki-background-option linkki-background-option--solid">
                 <span class="linkki-background-heading"><input type="radio" name="linkki-background-mode" value="solid" data-background-radio ${state.profile.backgroundMode !== "gradient" ? "checked" : ""} /><strong>Cor sólida</strong></span>
                 <span class="linkki-background-swatches">
                   <span class="direct-color-control"><input type="color" data-solid-color-picker value="${validHex(state.profile.customColors.background, "#CAD593")}" aria-label="Cor sólida do fundo" /><input class="hex-input" data-solid-color-field value="${escapeHtml(state.profile.customColors.background)}" maxlength="7" aria-label="Código da cor sólida" /></span>
                 </span>
               </label>
+            </div>
+            <div class="linkki-background-gallery">
+              <div class="linkki-background-gallery-title">Imagens do Linkki</div>
+              <div class="linkki-background-gallery-grid">${linkkiBackgroundPresets.map(p => `<button type="button" class="linkki-background-preset ${state.profile.backgroundMode === 'image' && state.profile.backgroundImage === p.file ? 'is-selected' : ''}" data-background-preset="${p.id}" aria-label="Usar fundo ${p.name}" title="${p.name}"><img src="${p.file}" alt="" loading="lazy"/><span>${p.name}</span></button>`).join('')}</div>
+              <div class="linkki-background-upload-actions"><label class="button button--ghost button--small" for="linkki-background-upload">Enviar minha imagem</label><input id="linkki-background-upload" type="file" accept="image/jpeg,image/png,image/webp" hidden />${state.profile.backgroundImage ? `<button type="button" class="button button--ghost button--small" data-action="remove-background-image">Remover imagem</button>` : ''}</div>
+              <small>Imagem vertical ou horizontal. A foto será ajustada para preencher o fundo.</small>
             </div>
           </div>` : `
           <div class="direct-color-row">
@@ -1414,7 +1450,7 @@ function templatePreviewMarkup(item) {
   const shadow = appearance.buttonShadow || { enabled: false, distance: 0, blur: 0, opacity: 0, angle: 90 };
   const style = [
     `--template-bg:${validHex(colors.background, "#CAD593")}`,
-    `background:${appearance.backgroundMode === "gradient" ? `linear-gradient(180deg, ${validHex(colors.background, "#CAD593")}, ${validHex(appearance.gradientSecondColor, "#F2F5DF")})` : validHex(colors.background, "#CAD593")}`,
+    `background:${linkkiBackgroundCss(appearance)}`,
     `--template-text:${validHex(colors.text, "#2A3C24")}`,
     `--template-button:${validHex(colors.buttonBackground, "#2A3C24")}`,
     `--template-button-text:${validHex(colors.buttonText, "#CAD593")}`,
@@ -1872,19 +1908,19 @@ function linkkiPublicShareUrl(username) {
 function linkkiPublicBackground(profile) {
   const first = validHex(profile?.customColors?.background, '#F7F8F3');
   const second = validHex(profile?.gradientSecondColor, '#F2F5DF');
-  return profile?.backgroundMode === 'gradient'
-    ? `linear-gradient(180deg, ${first} 0%, ${second} 100%)` : first;
+  return linkkiBackgroundCss(profile);
 }
 function linkkiReadPublicBackground(username) {
   try {
     const saved = JSON.parse(localStorage.getItem('linkki-public-backgrounds') || '{}')[username];
-    if (saved && (/^#[0-9a-f]{6}$/i.test(saved) || /^linear-gradient\(180deg, #[0-9a-f]{6} 0%, #[0-9a-f]{6} 100%\)$/i.test(saved))) return saved;
+    if (saved && (/^#[0-9a-f]{6}$/i.test(saved) || /^linear-gradient\(180deg, #[0-9a-f]{6} 0%, #[0-9a-f]{6} 100%\)$/i.test(saved) || linkkiBackgroundPresets.some(p => saved === `url(\"${p.file}\") center center / cover no-repeat`))) return saved;
   } catch (_) {}
   return '#F7F8F3'; // Primeira visita: cor neutra até chegar a aparência publicada.
 }
 function linkkiSavePublicBackground(username, background) {
   try {
     const backgrounds = JSON.parse(localStorage.getItem('linkki-public-backgrounds') || '{}');
+    if (background.length > 500) return; // Nao guardar imagens enviadas no armazenamento local.
     backgrounds[username] = background;
     const names = Object.keys(backgrounds);
     if (names.length > 30) delete backgrounds[names[0]];
@@ -2400,6 +2436,7 @@ function bindEvents() {
       state.profile.customColors = appearance.customColors;
       state.profile.backgroundMode = appearance.backgroundMode || "solid";
       state.profile.gradientSecondColor = appearance.gradientSecondColor || "#F2F5DF";
+      state.profile.backgroundImage = linkkiSafeBackgroundImage(appearance.backgroundImage);
       state.profile.elementAnimation = appearance.elementAnimation || "none";
       state.profile.buttonStyle = appearance.buttonStyle;
       state.profile.buttonBorder = appearance.buttonBorder;
@@ -2489,6 +2526,7 @@ function bindEvents() {
       state.profile.customColors = appearance.customColors;
       state.profile.backgroundMode = appearance.backgroundMode || 'solid';
       state.profile.gradientSecondColor = appearance.gradientSecondColor || '#F2F5DF';
+      state.profile.backgroundImage = linkkiSafeBackgroundImage(appearance.backgroundImage);
       state.profile.elementAnimation = appearance.elementAnimation || 'none';
       state.profile.buttonStyle = appearance.buttonStyle;
       state.profile.buttonBorder = appearance.buttonBorder;
@@ -2549,6 +2587,43 @@ function bindEvents() {
     state.profile.backgroundMode = radio.value;
     saveState(); render();
   }));
+  document.querySelectorAll('[data-background-preset]').forEach(button => button.addEventListener('click', () => {
+    const preset = linkkiBackgroundPresets.find(p => p.id === button.dataset.backgroundPreset);
+    if (!preset) return;
+    state.profile.backgroundMode = 'image';
+    state.profile.backgroundImage = preset.file;
+    saveState(); render();
+  }));
+  document.querySelector('[data-action="remove-background-image"]')?.addEventListener('click', () => {
+    state.profile.backgroundImage = '';
+    state.profile.backgroundMode = 'solid';
+    saveState(); render();
+  });
+  document.querySelector('#linkki-background-upload')?.addEventListener('change', async event => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    if (!['image/jpeg','image/png','image/webp'].includes(file.type) || file.size > 8 * 1024 * 1024) {
+      showToast('Use JPG, PNG ou WebP de ate 8 MB.'); return;
+    }
+    try {
+      const bitmap = await createImageBitmap(file);
+      const scale = Math.min(1, 1200 / Math.max(bitmap.width, bitmap.height));
+      const canvas = document.createElement('canvas');
+      canvas.width = Math.max(1, Math.round(bitmap.width * scale));
+      canvas.height = Math.max(1, Math.round(bitmap.height * scale));
+      const ctx = canvas.getContext('2d');
+      ctx.fillStyle = '#FFFFFF'; ctx.fillRect(0,0,canvas.width,canvas.height);
+      ctx.drawImage(bitmap,0,0,canvas.width,canvas.height);
+      bitmap.close?.();
+      let data = canvas.toDataURL('image/jpeg', .78);
+      if (data.length > 550000) data = canvas.toDataURL('image/jpeg', .55);
+      if (!linkkiSafeBackgroundImage(data)) { showToast('Imagem muito grande. Tente outra.'); return; }
+      state.profile.backgroundImage = data;
+      state.profile.backgroundMode = 'image';
+      saveState(); render();
+      showToast('Imagem de fundo adicionada.');
+    } catch (error) { console.warn(error); showToast('Nao foi possivel abrir esta imagem.'); }
+  });
   const syncBackgroundControls = () => {
     const value = validHex(state.profile.customColors.background, "#CAD593");
     document.querySelectorAll('[data-color-picker="background"], [data-solid-color-picker]').forEach(input => { input.value = value; });

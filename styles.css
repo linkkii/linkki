@@ -3704,3 +3704,17 @@ button.template-stat {
 /* Controles da foto Hero no mesmo padrão dos sliders de sombra */
 .linkki-hero-adjust .range-grid { margin: 2px 0; }
 .linkki-hero-adjust .range-control { width: 100%; }
+
+/* Galeria de fundos: nao interfere nos layouts de avatar ou nos sliders. */
+.linkki-background-gallery { width:100%; margin-top:16px; padding-top:14px; border-top:1px solid var(--line); }
+.linkki-background-gallery-title { font-size:12px; font-weight:750; margin-bottom:10px; color:var(--root); }
+.linkki-background-gallery-grid { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:9px; }
+.linkki-background-preset { display:flex; flex-direction:column; gap:5px; padding:5px; border:2px solid transparent; background:transparent; border-radius:12px; cursor:pointer; font-size:11px; text-align:center; }
+.linkki-background-preset img { width:100%; aspect-ratio:4/5; object-fit:cover; border-radius:8px; }
+.linkki-background-preset.is-selected { border-color:var(--sprout); }
+.linkki-background-upload-actions { display:flex; gap:8px; flex-wrap:wrap; margin-top:12px; }
+.linkki-background-gallery small { display:block; margin-top:8px; font-size:11px; color:var(--muted); }
+@media(max-width:520px){.linkki-background-gallery-grid{grid-template-columns:repeat(2,minmax(0,1fr));}}
+
+.linkki-background-row { flex-wrap:wrap; }
+.linkki-background-gallery { flex:0 0 100%; }
