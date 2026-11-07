@@ -137,6 +137,9 @@ const defaultState = {
     avatar: "",
     avatarLayout: "classic",
     bannerImage: "",
+    heroPhotoZoom: 100,
+    heroPhotoX: 50,
+    heroPhotoY: 50,
     avatarBorder: { enabled: false, color: "#2A3C24" },
     background: "custom",
     backgroundMode: "solid",
@@ -193,6 +196,9 @@ function appearanceSnapshot(profile) {
     backgroundMode: profile.backgroundMode || "solid",
     gradientSecondColor: profile.gradientSecondColor || "#F2F5DF",
     elementAnimation: profile.elementAnimation || "none",
+    heroPhotoZoom: profile.heroPhotoZoom ?? 100,
+    heroPhotoX: profile.heroPhotoX ?? 50,
+    heroPhotoY: profile.heroPhotoY ?? 50,
     buttonStyle: profile.buttonStyle,
     titleFont: fontPresets[profile.titleFont] ? profile.titleFont : "system",
     bodyFont: fontPresets[profile.bodyFont] ? profile.bodyFont : "system",
@@ -391,7 +397,7 @@ function reportCloudError(error) {
 // Apenas os campos destinados à página pública são enviados para esta tabela.
 function publicPageSnapshot() {
   const profile = structuredClone(state.profile);
-  const allowed = ['name','username','bio','avatar','avatarLayout','bannerImage','avatarBorder','customColors','backgroundMode','gradientSecondColor','elementAnimation','buttonStyle','buttonBorder','buttonShadow','titleFont','bodyFont','customFonts'];
+  const allowed = ['name','username','bio','avatar','avatarLayout','bannerImage','heroPhotoZoom','heroPhotoX','heroPhotoY','avatarBorder','customColors','backgroundMode','gradientSecondColor','elementAnimation','buttonStyle','buttonBorder','buttonShadow','titleFont','bodyFont','customFonts'];
   const safeProfile = Object.fromEntries(allowed.filter(k => Object.hasOwn(profile,k)).map(k => [k,profile[k]]));
   return { profile: safeProfile, links: state.links.filter(link => link.visible).map(link => ({ id: link.id, title: link.title, url: link.url, visible: true })) };
 }
@@ -406,7 +412,7 @@ async function syncPublicPage(owner, snapshot) {
     return;
   }
   const { error } = await authClient.from('linkki_public_pages').upsert({
-    user_id: owner, username, public_data: { profile: Object.fromEntries(['name','username','bio','avatar','avatarLayout','bannerImage','avatarBorder','customColors','backgroundMode','gradientSecondColor','elementAnimation','buttonStyle','buttonBorder','buttonShadow','titleFont','bodyFont','customFonts'].filter(k => Object.hasOwn(snapshot.profile,k)).map(k => [k,snapshot.profile[k]])), links: snapshot.links.filter(link => link.visible).map(link => ({ id: link.id, title: link.title, url: link.url, visible: true })) }, updated_at: new Date().toISOString()
+    user_id: owner, username, public_data: { profile: Object.fromEntries(['name','username','bio','avatar','avatarLayout','bannerImage','heroPhotoZoom','heroPhotoX','heroPhotoY','avatarBorder','customColors','backgroundMode','gradientSecondColor','elementAnimation','buttonStyle','buttonBorder','buttonShadow','titleFont','bodyFont','customFonts'].filter(k => Object.hasOwn(snapshot.profile,k)).map(k => [k,snapshot.profile[k]])), links: snapshot.links.filter(link => link.visible).map(link => ({ id: link.id, title: link.title, url: link.url, visible: true })) }, updated_at: new Date().toISOString()
   }, { onConflict: 'user_id' });
   if (error) throw error;
 }
@@ -414,7 +420,7 @@ async function syncPublicPage(owner, snapshot) {
 function publicPublishPayload() {
   const snapshot = editableSnapshot();
   const profile = snapshot.profile;
-  const allowed = ['name','username','bio','avatar','avatarLayout','bannerImage','avatarBorder','customColors','backgroundMode','gradientSecondColor','elementAnimation','buttonStyle','buttonBorder','buttonShadow','titleFont','bodyFont','customFonts'];
+  const allowed = ['name','username','bio','avatar','avatarLayout','bannerImage','heroPhotoZoom','heroPhotoX','heroPhotoY','avatarBorder','customColors','backgroundMode','gradientSecondColor','elementAnimation','buttonStyle','buttonBorder','buttonShadow','titleFont','bodyFont','customFonts'];
   return {
     profile: Object.fromEntries(allowed.filter(k => Object.hasOwn(profile,k)).map(k => [k,profile[k]])),
     links: snapshot.links.filter(link => link.visible).map(link => ({ id: link.id, title: link.title, url: link.url, visible: true }))
@@ -1036,6 +1042,9 @@ function publicProfileMarkup(page = { profile: state.profile, links: state.links
   const mode = profile.backgroundMode === "gradient" ? "gradient" : "solid";
   const avatarLayout = ["classic", "hero", "banner"].includes(profile.avatarLayout) ? profile.avatarLayout : "classic";
   const heroImage = safeImageSrc(profile.avatar);
+  const heroZoom = Math.max(100, Math.min(250, Number(profile.heroPhotoZoom) || 100));
+  const heroX = Math.max(0, Math.min(100, Number(profile.heroPhotoX ?? 50)));
+  const heroY = Math.max(0, Math.min(100, Number(profile.heroPhotoY ?? 50)));
   const bannerImage = safeImageSrc(profile.bannerImage);
   const animation = ["fade-top", "bounce", "fade-bottom"].includes(profile.elementAnimation) ? profile.elementAnimation : "none";
   const bg = validHex(custom.background, "#CAD593");
@@ -1058,7 +1067,7 @@ function publicProfileMarkup(page = { profile: state.profile, links: state.links
   return `
     ${customFontStyle}
     <div class="profile-canvas bg-custom profile-layout-${avatarLayout} profile-motion-${animation} buttons-${escapeHtml(profile.buttonStyle)}" style="${escapeHtml(colorStyle)}">
-      ${avatarLayout === "hero" && heroImage ? `<div class="linkki-profile-cover linkki-profile-cover--hero" style="background-image:url('${escapeHtml(heroImage)}')" aria-hidden="true"></div>` : ""}
+      ${avatarLayout === "hero" && heroImage ? `<div class="linkki-profile-cover linkki-profile-cover--hero" style="background-image:url('${escapeHtml(heroImage)}');background-position:${heroX}% ${heroY}%;background-size:${heroZoom}% auto" aria-hidden="true"></div>` : ""}
       ${avatarLayout === "banner" && bannerImage ? `<div class="linkki-profile-cover linkki-profile-cover--banner" style="background-image:url('${escapeHtml(bannerImage)}')" aria-hidden="true"></div>` : ""}
       <div class="profile-inner">
         ${avatarLayout === "hero" && heroImage ? "" : avatarMarkup("public-avatar", profile)}
@@ -1255,6 +1264,7 @@ function appearancePanel() {
       <div class="linkki-layout-options" role="group" aria-label="Layout da foto de perfil">
         ${[["classic","Clássico"],["hero","Hero"],["banner","Banner"]].map(([id,label]) => `<button type="button" class="linkki-layout-option ${((state.profile.avatarLayout || "classic") === id) ? "is-active" : ""}" data-avatar-layout="${id}" aria-pressed="${(state.profile.avatarLayout || "classic") === id}"><span class="linkki-layout-mini linkki-layout-mini--${id}"><span></span></span><strong>${label}</strong></button>`).join("")}
       </div>
+      ${state.profile.avatarLayout === "hero" && safeImageSrc(state.profile.avatar) ? `<div class="linkki-hero-adjust"><strong>Ajustar foto do Hero</strong><p>Arraste a foto na prévia ao lado para reposicionar.</p><label for="linkki-hero-zoom">Tamanho da foto: <output id="linkki-hero-zoom-value">${Math.max(100, Math.min(250, Number(state.profile.heroPhotoZoom) || 100))}%</output></label><input id="linkki-hero-zoom" type="range" min="100" max="250" step="5" value="${Math.max(100, Math.min(250, Number(state.profile.heroPhotoZoom) || 100))}" /><button type="button" class="button button--ghost button--small" data-action="reset-hero-photo">Centralizar foto</button></div>` : ""}
       ${state.profile.avatarLayout === "banner" ? `<div class="linkki-banner-upload"><strong>Imagem do banner</strong><span>Escolha uma imagem horizontal para ficar atrás da foto de perfil.</span><div class="linkki-banner-actions">${safeImageSrc(state.profile.bannerImage) ? `<img class="linkki-banner-thumbnail" src="${escapeHtml(safeImageSrc(state.profile.bannerImage))}" alt="Prévia do banner" />` : ""}<label class="button button--ghost button--small" for="linkki-banner-input">${state.profile.bannerImage ? "Trocar banner" : "Enviar banner"}</label>${state.profile.bannerImage ? `<button type="button" class="button button--ghost button--small" data-action="remove-banner">Remover</button>` : ""}</div></div>` : ""}
       <input id="linkki-banner-input" type="file" accept="image/png,image/jpeg,image/webp,image/gif" hidden />
     </section>
@@ -1406,6 +1416,7 @@ function templatePreviewMarkup(item) {
   const preview = appearance.previewSnapshot || {};
   const previewLayout = preview.avatarLayout || 'classic';
   const heroPhoto = previewLayout === 'hero' ? safeImageSrc(preview.avatar) : '';
+  const heroPreviewStyle = `background-position:${Math.max(0,Math.min(100,Number(preview.heroPhotoX ?? appearance.heroPhotoX ?? 50)))}% ${Math.max(0,Math.min(100,Number(preview.heroPhotoY ?? appearance.heroPhotoY ?? 50)))}%;background-size:${Math.max(100,Math.min(250,Number(preview.heroPhotoZoom ?? appearance.heroPhotoZoom ?? 100)))}% auto`;
   const bannerPhoto = previewLayout === 'banner' ? safeImageSrc(preview.bannerImage) : '';
   const avatar = typeof (item.profileAvatar || preview.avatar) === "string" && /^(data:image\/(png|jpeg|jpg|webp|gif);base64,|https:\/\/)/i.test(item.profileAvatar || preview.avatar) ? (item.profileAvatar || preview.avatar) : "";
   const miniLinks = Array.isArray(item.previewLinks || preview.links)
@@ -1413,7 +1424,7 @@ function templatePreviewMarkup(item) {
     : "<span>Meu destaque</span><span>Conteúdo novo</span><span>Fale comigo</span>";
   return `
     <div class="template-preview template-shape-${escapeHtml(shape)} ${heroPhoto ? 'template-preview--hero' : ''}" style="${escapeHtml(style)}">
-      ${heroPhoto ? `<div class="template-mini-cover template-mini-cover--hero" style="background-image:url('${escapeHtml(heroPhoto)}')"></div>` : ''}
+      ${heroPhoto ? `<div class="template-mini-cover template-mini-cover--hero" style="background-image:url('${escapeHtml(heroPhoto)}');${heroPreviewStyle}"></div>` : ''}
       ${bannerPhoto ? `<div class="template-mini-cover template-mini-cover--banner" style="background-image:url('${escapeHtml(bannerPhoto)}')"></div>` : ''}
       <div class="template-mini-content">
       ${heroPhoto ? '' : `<div class="template-mini-avatar">${avatar ? `<img src="${escapeHtml(avatar)}" alt="Foto do perfil" />` : escapeHtml(item.initials || initials(item.title))}</div>`}
@@ -2496,6 +2507,9 @@ function bindEvents() {
             avatar: state.profile.avatar || '',
             bannerImage: state.profile.bannerImage || '',
             avatarLayout: state.profile.avatarLayout || 'classic',
+            heroPhotoZoom: state.profile.heroPhotoZoom ?? 100,
+            heroPhotoX: state.profile.heroPhotoX ?? 50,
+            heroPhotoY: state.profile.heroPhotoY ?? 50,
             name: page.profileName || state.profile.name || '',
             username: state.account.username || state.profile.username || '',
             links: state.links.filter(link => link.visible).slice(0, 5).map(link => ({title: link.title}))
@@ -2761,6 +2775,46 @@ function bindEvents() {
     saveState();
     render();
   }));
+  // Ajuste de enquadramento da foto Hero: apenas na prévia do editor.
+  const heroZoomInput = document.querySelector('#linkki-hero-zoom');
+  heroZoomInput?.addEventListener('input', () => {
+    state.profile.heroPhotoZoom = Number(heroZoomInput.value);
+    const output = document.querySelector('#linkki-hero-zoom-value');
+    if (output) output.textContent = `${heroZoomInput.value}%`;
+    syncLivePreview();
+    saveState();
+  });
+  document.querySelector('[data-action="reset-hero-photo"]')?.addEventListener('click', () => {
+    state.profile.heroPhotoZoom = 100;
+    state.profile.heroPhotoX = 50;
+    state.profile.heroPhotoY = 50;
+    saveState(); render();
+  });
+  const previewScreenForHero = document.querySelector('.preview-screen');
+  if (previewScreenForHero && !previewScreenForHero.dataset.heroDragBound) {
+    previewScreenForHero.dataset.heroDragBound = 'true';
+    let drag = null;
+    previewScreenForHero.addEventListener('pointerdown', event => {
+      const cover = event.target.closest('.linkki-profile-cover--hero');
+      if (!cover || !state.profile.avatar || event.button !== 0) return;
+      drag = { id: event.pointerId, x: event.clientX, y: event.clientY,
+        startX: Number(state.profile.heroPhotoX ?? 50), startY: Number(state.profile.heroPhotoY ?? 50),
+        width: cover.clientWidth, height: cover.clientHeight };
+      cover.setPointerCapture(event.pointerId);
+      event.preventDefault();
+    });
+    previewScreenForHero.addEventListener('pointermove', event => {
+      if (!drag || drag.id !== event.pointerId) return;
+      const cover = event.target.closest('.linkki-profile-cover--hero');
+      if (!cover) return;
+      state.profile.heroPhotoX = Math.max(0, Math.min(100, drag.startX - (event.clientX - drag.x) / drag.width * 100));
+      state.profile.heroPhotoY = Math.max(0, Math.min(100, drag.startY - (event.clientY - drag.y) / drag.height * 100));
+      cover.style.backgroundPosition = `${state.profile.heroPhotoX}% ${state.profile.heroPhotoY}%`;
+    });
+    const finish = () => { if (drag) { drag = null; saveState(); } };
+    previewScreenForHero.addEventListener('pointerup', finish);
+    previewScreenForHero.addEventListener('pointercancel', finish);
+  }
   document.querySelector('[data-action="remove-banner"]')?.addEventListener("click", () => updateProfileField("bannerImage", ""));
   document.querySelector("#linkki-banner-input")?.addEventListener("change", event => {
     const file = event.target.files?.[0];

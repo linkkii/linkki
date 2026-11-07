@@ -3691,3 +3691,12 @@ button.template-stat {
 .community-template-card .template-preview--hero { padding-top: 155px; }
 .community-template-card .template-mini-cover--banner { height: 70px; }
 .community-template-card .template-mini-cover--banner + .template-mini-content { padding-top: 32px; }
+
+/* Enquadramento interativo da foto Hero no editor */
+.preview-screen .linkki-profile-cover--hero { pointer-events:auto; cursor:grab; touch-action:none; user-select:none; }
+.preview-screen .linkki-profile-cover--hero:active { cursor:grabbing; }
+.linkki-hero-adjust { margin-top:14px; padding:14px; border:1px solid var(--line); border-radius:12px; display:grid; gap:10px; }
+.linkki-hero-adjust p { margin:0; font-size:12px; color:var(--muted); }
+.linkki-hero-adjust label { font-size:12px; font-weight:700; }
+.linkki-hero-adjust input[type=range] { width:100%; accent-color:var(--sprout); }
+.linkki-hero-adjust button { justify-self:start; }
