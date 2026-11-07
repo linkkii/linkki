@@ -3700,3 +3700,7 @@ button.template-stat {
 .linkki-hero-adjust label { font-size:12px; font-weight:700; }
 .linkki-hero-adjust input[type=range] { width:100%; accent-color:var(--sprout); }
 .linkki-hero-adjust button { justify-self:start; }
+
+/* Controles da foto Hero no mesmo padrão dos sliders de sombra */
+.linkki-hero-adjust .range-grid { margin: 2px 0; }
+.linkki-hero-adjust .range-control { width: 100%; }

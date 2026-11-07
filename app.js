@@ -1264,7 +1264,19 @@ function appearancePanel() {
       <div class="linkki-layout-options" role="group" aria-label="Layout da foto de perfil">
         ${[["classic","Clássico"],["hero","Hero"],["banner","Banner"]].map(([id,label]) => `<button type="button" class="linkki-layout-option ${((state.profile.avatarLayout || "classic") === id) ? "is-active" : ""}" data-avatar-layout="${id}" aria-pressed="${(state.profile.avatarLayout || "classic") === id}"><span class="linkki-layout-mini linkki-layout-mini--${id}"><span></span></span><strong>${label}</strong></button>`).join("")}
       </div>
-      ${state.profile.avatarLayout === "hero" && safeImageSrc(state.profile.avatar) ? `<div class="linkki-hero-adjust"><strong>Ajustar foto do Hero</strong><p>Arraste a foto na prévia ao lado para reposicionar.</p><label for="linkki-hero-zoom">Tamanho da foto: <output id="linkki-hero-zoom-value">${Math.max(100, Math.min(250, Number(state.profile.heroPhotoZoom) || 100))}%</output></label><input id="linkki-hero-zoom" type="range" min="100" max="250" step="5" value="${Math.max(100, Math.min(250, Number(state.profile.heroPhotoZoom) || 100))}" /><button type="button" class="button button--ghost button--small" data-action="reset-hero-photo">Centralizar foto</button></div>` : ""}
+      ${state.profile.avatarLayout === "hero" && safeImageSrc(state.profile.avatar) ? `<div class="linkki-hero-adjust">
+        <strong>Ajustar foto do Hero</strong>
+        <p>Arraste a foto na prévia ao lado para reposicionar.</p>
+        <div class="range-grid">
+          ${[["heroPhotoZoom", "Tamanho", 100, 250, 5, "%"], ["heroPhotoX", "Posição horizontal", 0, 100, 1, "%"], ["heroPhotoY", "Posição vertical", 0, 100, 1, "%"]].map(([field,label,min,max,step,suffix]) => `
+            <label class="range-control">
+              <span><strong>${label}</strong><output data-hero-output="${field}">${Math.max(min,Math.min(max,Number(state.profile[field] ?? (field === 'heroPhotoZoom' ? 100 : 50))))}${suffix}</output></span>
+              <input type="range" min="${min}" max="${max}" step="${step}" value="${Math.max(min,Math.min(max,Number(state.profile[field] ?? (field === 'heroPhotoZoom' ? 100 : 50))))}" data-hero-field="${field}" data-suffix="${suffix}" />
+            </label>
+          `).join("")}
+        </div>
+        <button type="button" class="button button--ghost button--small" data-action="reset-hero-photo">Centralizar foto</button>
+      </div>` : ""}
       ${state.profile.avatarLayout === "banner" ? `<div class="linkki-banner-upload"><strong>Imagem do banner</strong><span>Escolha uma imagem horizontal para ficar atrás da foto de perfil.</span><div class="linkki-banner-actions">${safeImageSrc(state.profile.bannerImage) ? `<img class="linkki-banner-thumbnail" src="${escapeHtml(safeImageSrc(state.profile.bannerImage))}" alt="Prévia do banner" />` : ""}<label class="button button--ghost button--small" for="linkki-banner-input">${state.profile.bannerImage ? "Trocar banner" : "Enviar banner"}</label>${state.profile.bannerImage ? `<button type="button" class="button button--ghost button--small" data-action="remove-banner">Remover</button>` : ""}</div></div>` : ""}
       <input id="linkki-banner-input" type="file" accept="image/png,image/jpeg,image/webp,image/gif" hidden />
     </section>
@@ -2775,15 +2787,16 @@ function bindEvents() {
     saveState();
     render();
   }));
-  // Ajuste de enquadramento da foto Hero: apenas na prévia do editor.
-  const heroZoomInput = document.querySelector('#linkki-hero-zoom');
-  heroZoomInput?.addEventListener('input', () => {
-    state.profile.heroPhotoZoom = Number(heroZoomInput.value);
-    const output = document.querySelector('#linkki-hero-zoom-value');
-    if (output) output.textContent = `${heroZoomInput.value}%`;
+  // Sliders de enquadramento: mesmos componentes visuais usados pela sombra.
+  document.querySelectorAll('[data-hero-field]').forEach(input => input.addEventListener('input', () => {
+    const field = input.dataset.heroField;
+    if (!['heroPhotoZoom','heroPhotoX','heroPhotoY'].includes(field)) return;
+    state.profile[field] = Number(input.value);
+    const output = document.querySelector(`[data-hero-output="${field}"]`);
+    if (output) output.textContent = `${input.value}${input.dataset.suffix || '%'}`;
     syncLivePreview();
     saveState();
-  });
+  }));
   document.querySelector('[data-action="reset-hero-photo"]')?.addEventListener('click', () => {
     state.profile.heroPhotoZoom = 100;
     state.profile.heroPhotoX = 50;
@@ -2810,6 +2823,12 @@ function bindEvents() {
       state.profile.heroPhotoX = Math.max(0, Math.min(100, drag.startX - (event.clientX - drag.x) / drag.width * 100));
       state.profile.heroPhotoY = Math.max(0, Math.min(100, drag.startY - (event.clientY - drag.y) / drag.height * 100));
       cover.style.backgroundPosition = `${state.profile.heroPhotoX}% ${state.profile.heroPhotoY}%`;
+      for (const field of ['heroPhotoX','heroPhotoY']) {
+        const slider = document.querySelector(`[data-hero-field="${field}"]`);
+        const output = document.querySelector(`[data-hero-output="${field}"]`);
+        if (slider) slider.value = String(Math.round(state.profile[field]));
+        if (output) output.textContent = `${Math.round(state.profile[field])}%`;
+      }
     });
     const finish = () => { if (drag) { drag = null; saveState(); } };
     previewScreenForHero.addEventListener('pointerup', finish);
