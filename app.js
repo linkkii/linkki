@@ -1604,20 +1604,54 @@ function linkkiMoveCommunityIndicator(animate = true) {
   const selected = nav.querySelector(`[data-community-view="${state.communityView}"]`);
   const indicator = nav.querySelector('.community-nav-indicator');
   if (!selected || !indicator) return;
-  // Mantém o indicador dentro do contorno e acima do fundo branco da navegação.
-  const left = selected.offsetLeft;
-  const width = selected.offsetWidth;
-  if (!animate || !indicator.dataset.ready) {
-    indicator.style.transition = 'none';
-    indicator.style.left = `${left}px`;
-    indicator.style.width = `${width}px`;
-    // Força a posição inicial antes de permitir que o CSS anime a próxima troca.
-    void indicator.offsetWidth;
-    indicator.style.transition = '';
-    indicator.dataset.ready = '1';
+
+  const targetLeft = selected.offsetLeft;
+  const targetWidth = selected.offsetWidth;
+  const wasReady = indicator.dataset.ready === '1';
+
+  // Captura a posicao realmente VISIVEL, inclusive em trocas rapidas de aba.
+  const navRect = nav.getBoundingClientRect();
+  const oldRect = indicator.getBoundingClientRect();
+  const oldLeft = oldRect.left - navRect.left - nav.clientLeft;
+  const oldWidth = oldRect.width;
+  if (indicator._linkkiSlideAnimation) {
+    indicator._linkkiSlideAnimation.cancel();
+    indicator._linkkiSlideAnimation = null;
+  }
+
+  // Posição final é aplicada sem transição CSS: o movimento é controlado
+  // explicitamente por Web Animations para não travar em mudanças de estado.
+  indicator.style.transition = 'none';
+  indicator.style.left = `${targetLeft}px`;
+  indicator.style.width = `${targetWidth}px`;
+  indicator.dataset.ready = '1';
+
+  if (!animate || !wasReady || (Math.abs(oldLeft - targetLeft) < 0.5 && Math.abs(oldWidth - targetWidth) < 0.5)) return;
+
+  if (typeof indicator.animate === 'function') {
+    const animation = indicator.animate([
+      { left: `${oldLeft}px`, width: `${oldWidth}px` },
+      { left: `${targetLeft}px`, width: `${targetWidth}px` }
+    ], {
+      duration: 480,
+      easing: 'cubic-bezier(0.22, 1, 0.36, 1)',
+      fill: 'both'
+    });
+    indicator._linkkiSlideAnimation = animation;
+    animation.addEventListener('finish', () => {
+      if (indicator._linkkiSlideAnimation === animation) {
+        animation.cancel();
+        indicator._linkkiSlideAnimation = null;
+      }
+    }, { once: true });
   } else {
-    indicator.style.left = `${left}px`;
-    indicator.style.width = `${width}px`;
+    // Fallback para navegadores sem Web Animations.
+    indicator.style.transition = 'left 480ms cubic-bezier(.22,1,.36,1), width 480ms cubic-bezier(.22,1,.36,1)';
+    indicator.style.left = `${oldLeft}px`;
+    indicator.style.width = `${oldWidth}px`;
+    void indicator.offsetWidth;
+    indicator.style.left = `${targetLeft}px`;
+    indicator.style.width = `${targetWidth}px`;
   }
 }
 
