@@ -1804,14 +1804,30 @@ async function trackPublicEvent(username, eventType, linkId = null) {
   } catch (error) { console.warn('Linkki: métrica não registrada', error); }
 }
 
+// Compatibilidade com Instagram: links públicos sem fragmento (#).
+// A rota com hash continua funcionando para links antigos e navegação interna.
+function linkkiPublicUsernameFromLocation() {
+  const hashRoute = location.hash.replace(/^#\/?/, '').toLowerCase();
+  if (hashRoute) return /^[a-z0-9_.-]{3,30}$/.test(hashRoute) && !['home', 'login', 'signup', 'editor', 'public'].includes(hashRoute) ? hashRoute : null;
+  const queryUsername = new URLSearchParams(location.search).get('perfil');
+  return queryUsername && /^[a-z0-9_.-]{3,30}$/i.test(queryUsername) ? queryUsername.toLowerCase() : null;
+}
+function linkkiPublicShareUrl(username) {
+  const url = new URL(location.pathname, location.origin);
+  url.searchParams.set('perfil', String(username).toLowerCase());
+  return url.href;
+}
+
 let publicRouteToken = 0;
 async function loadPublicRoute(username) {
   const token = ++publicRouteToken;
   const app = document.querySelector('#app');
   app.innerHTML = '<main class="public-page"><div class="profile-canvas bg-light"><div class="profile-inner"><p class="public-bio">Carregando página...</p></div></div></main>';
   if (!authClient) { app.innerHTML = publicNotFound('Não foi possível carregar esta página.'); return; }
-  const { data, error } = await authClient.from('linkki_public_pages').select('public_data').eq('username',username).maybeSingle();
-  if (token !== publicRouteToken || location.hash.replace(/^#\/?/, '').toLowerCase() !== username) return;
+  let data, error;
+  try { ({ data, error } = await authClient.from('linkki_public_pages').select('public_data').eq('username',username).maybeSingle()); }
+  catch (cause) { error = cause; }
+  if (token !== publicRouteToken || linkkiPublicUsernameFromLocation() !== username) return;
   if (error || !data?.public_data?.profile || !Array.isArray(data.public_data.links)) {
     app.innerHTML = publicNotFound(error ? 'Não foi possível carregar esta página.' : 'Esta página não está publicada.');
   } else {
@@ -1827,7 +1843,7 @@ function publicNotFound(message) {
 let lastRenderedRoute = null;
 function render() {
   const app = document.querySelector("#app");
-  const route = location.hash.replace(/^#\/?/, "") || "home";
+  const route = location.hash.replace(/^#\/?/, "") || linkkiPublicUsernameFromLocation() || "home";
   const sameRoute = lastRenderedRoute === route;
   const previousScroll = window.scrollY;
   const oldPreview = sameRoute ? app.querySelector(".preview-screen") : null;
@@ -2785,7 +2801,7 @@ function bindEvents() {
   document.querySelector('[data-action="sidebar-share"]')?.addEventListener("click", async () => {
     const username = (state.account.username || state.profile.username || "").trim();
     if (!username) { showToast("Defina um nome de usuário para compartilhar."); return; }
-    const url = `${location.origin}${location.pathname}#/${encodeURIComponent(username)}`;
+    const url = linkkiPublicShareUrl(username);
     try {
       if (navigator.clipboard?.writeText) {
         await navigator.clipboard.writeText(url);
@@ -2808,7 +2824,7 @@ function bindEvents() {
   });
 
   document.querySelector('[data-action="share"]')?.addEventListener("click", async () => {
-    const url = `${location.origin}${location.pathname}#/${encodeURIComponent(state.account.username || state.profile.username)}`;
+    const url = linkkiPublicShareUrl(state.account.username || state.profile.username);
     const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
     try {
       // On desktop, native share dialogs may briefly flash and disappear.
@@ -2840,8 +2856,8 @@ function bindEvents() {
 
   document.querySelectorAll("[data-public-link]").forEach((linkElement) => {
     linkElement.addEventListener("click", () => {
-      const route = location.hash.replace(/^#\/?/, '').toLowerCase();
-      if (route !== 'public' && /^[a-z0-9_.-]{3,30}$/.test(route)) {
+      const route = linkkiPublicUsernameFromLocation();
+      if (route && route !== 'public' && /^[a-z0-9_.-]{3,30}$/.test(route)) {
         void trackPublicEvent(route, 'click', linkElement.dataset.publicLink);
       }
     });
