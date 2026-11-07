@@ -1403,19 +1403,27 @@ function templatePreviewMarkup(item) {
     `--template-body-font:${fontCssValue(appearance.bodyFont || "system")}`,
   ].join(";");
   const shape = appearance.buttonStyle || "rounded";
-  const avatar = typeof item.profileAvatar === "string" && /^(data:image\/(png|jpeg|jpg|webp|gif);base64,|https:\/\/)/i.test(item.profileAvatar) ? item.profileAvatar : "";
-  const miniLinks = Array.isArray(item.previewLinks)
-    ? item.previewLinks.filter(link => link && typeof link.title === "string").slice(0, 5).map(link => `<span>${escapeHtml(link.title)}</span>`).join("")
+  const preview = appearance.previewSnapshot || {};
+  const previewLayout = preview.avatarLayout || 'classic';
+  const heroPhoto = previewLayout === 'hero' ? safeImageSrc(preview.avatar) : '';
+  const bannerPhoto = previewLayout === 'banner' ? safeImageSrc(preview.bannerImage) : '';
+  const avatar = typeof (item.profileAvatar || preview.avatar) === "string" && /^(data:image\/(png|jpeg|jpg|webp|gif);base64,|https:\/\/)/i.test(item.profileAvatar || preview.avatar) ? (item.profileAvatar || preview.avatar) : "";
+  const miniLinks = Array.isArray(item.previewLinks || preview.links)
+    ? (item.previewLinks || preview.links).filter(link => link && typeof link.title === "string").slice(0, 5).map(link => `<span>${escapeHtml(link.title)}</span>`).join("")
     : "<span>Meu destaque</span><span>Conteúdo novo</span><span>Fale comigo</span>";
   return `
-    <div class="template-preview template-shape-${escapeHtml(shape)}" style="${escapeHtml(style)}">
-      <div class="template-mini-avatar">${avatar ? `<img src="${escapeHtml(avatar)}" alt="Foto do perfil" />` : escapeHtml(item.initials || initials(item.title))}</div>
-      <strong class="template-mini-name">${escapeHtml(item.previewName || item.author || item.title)}</strong>
-      <span class="template-mini-handle">@${escapeHtml(item.username || "seulinkki")}</span>
+    <div class="template-preview template-shape-${escapeHtml(shape)} ${heroPhoto ? 'template-preview--hero' : ''}" style="${escapeHtml(style)}">
+      ${heroPhoto ? `<div class="template-mini-cover template-mini-cover--hero" style="background-image:url('${escapeHtml(heroPhoto)}')"></div>` : ''}
+      ${bannerPhoto ? `<div class="template-mini-cover template-mini-cover--banner" style="background-image:url('${escapeHtml(bannerPhoto)}')"></div>` : ''}
+      <div class="template-mini-content">
+      ${heroPhoto ? '' : `<div class="template-mini-avatar">${avatar ? `<img src="${escapeHtml(avatar)}" alt="Foto do perfil" />` : escapeHtml(item.initials || initials(item.title))}</div>`}
+      <strong class="template-mini-name">${escapeHtml(item.previewName || preview.name || item.author || item.title)}</strong>
+      <span class="template-mini-handle">@${escapeHtml(item.username || preview.username || "seulinkki")}</span>
       <div class="template-mini-links">
         ${miniLinks}
       </div>
       <small><img class="template-brand-image" src="./logo-linkki.png" alt="Linkki" /></small>
+      </div>
     </div>
   `;
 }
@@ -1469,7 +1477,11 @@ async function loadCommunityTemplates() {
     initials: item.owner_id === LINKKI_OFFICIAL_USER_ID ? "LK" : initials(item.author || ''),
     title: item.title, category: item.category, likes: Number(item.likes) || 0,
     uses: Number(item.uses) || 0, liked: item.liked === true, published: true,
-    appearance: item.appearance
+    appearance: item.appearance,
+    profileAvatar: item.appearance?.previewSnapshot?.avatar || '',
+    previewName: item.appearance?.previewSnapshot?.name || '',
+    username: item.appearance?.previewSnapshot?.username || '',
+    previewLinks: item.appearance?.previewSnapshot?.links || null
   }));
   if (location.hash.replace(/^#\/?/, '') === 'editor' && state.activeSection === 'community') render();
 }
@@ -2478,7 +2490,17 @@ function bindEvents() {
       const category = accountCategories.find(([id]) => id === state.account.category)?.[2] || 'Criadores';
       const result = await communityAction('linkki_community_publish', {
         p_source_page_id: page.id, p_title: page.title, p_author: author,
-        p_category: category, p_appearance: appearanceSnapshot(page.appearance ? { ...state.profile, ...page.appearance } : state.profile)
+        p_category: category, p_appearance: {
+          ...appearanceSnapshot(page.appearance ? { ...state.profile, ...page.appearance } : state.profile),
+          previewSnapshot: {
+            avatar: state.profile.avatar || '',
+            bannerImage: state.profile.bannerImage || '',
+            avatarLayout: state.profile.avatarLayout || 'classic',
+            name: page.profileName || state.profile.name || '',
+            username: state.account.username || state.profile.username || '',
+            links: state.links.filter(link => link.visible).slice(0, 5).map(link => ({title: link.title}))
+          }
+        }
       }, 'Modelo publicado na comunidade.');
       if (result) { state.communityView = 'mine'; render(); }
     });

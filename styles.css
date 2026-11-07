@@ -3682,3 +3682,12 @@ button.template-stat {
   border-radius: 999px; background: #cad593; color: #2a3c24;
   font-size: 9px; font-weight: 800; line-height: 1; white-space: nowrap;
 }
+
+/* Prévia da comunidade: imagem original do modelo, sem alterar a aplicação. */
+.community-template-card .template-preview { position: relative; overflow: hidden; isolation: isolate; }
+.community-template-card .template-mini-content { position: relative; z-index: 1; }
+.community-template-card .template-mini-cover { position: absolute; z-index: 0; left: 0; right: 0; top: 0; background-position: center top; background-size: cover; background-repeat: no-repeat; }
+.community-template-card .template-mini-cover--hero { height: 61%; }
+.community-template-card .template-preview--hero { padding-top: 155px; }
+.community-template-card .template-mini-cover--banner { height: 70px; }
+.community-template-card .template-mini-cover--banner + .template-mini-content { padding-top: 32px; }
