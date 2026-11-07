@@ -3661,10 +3661,3 @@ button.template-stat {
 }
 .sidebar-share-button:hover { background: rgba(42, 60, 36, .07); }
 .sidebar-share-button:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
-
-/* Controles de histórico no cabeçalho do editor */
-.edit-history-actions { display:flex; align-items:center; gap:5px; }
-.edit-history-button { width:34px; height:34px; border:1px solid var(--line); border-radius:10px; background:#fff; color:var(--ink, #293b26); font-size:23px; line-height:1; cursor:pointer; display:grid; place-items:center; }
-.edit-history-button:hover:not(:disabled) { background:#f0f3e7; }
-.edit-history-button:disabled { opacity:.35; cursor:default; }
-@media(max-width:650px) { .edit-history-button { width:30px; height:30px; } }
