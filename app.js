@@ -576,6 +576,8 @@ function linkkiRefreshHistoryButtons() {
   document.querySelectorAll('[data-linkki-history]').forEach(button => {
     button.disabled = button.dataset.linkkiHistory === 'undo'
       ? !linkkiUndoStack.length : !linkkiRedoStack.length;
+    button.style.opacity = button.disabled ? '0.38' : '1';
+    button.style.cursor = button.disabled ? 'default' : 'pointer';
   });
 }
 function linkkiHistoryAction(direction) {
@@ -600,9 +602,11 @@ function linkkiHistoryAction(direction) {
   linkkiRefreshHistoryButtons();
 }
 function linkkiHistoryControls() {
-  return `<div style="display:flex;gap:8px;align-items:center" aria-label="Histórico de edição">
-    <button type="button" class="icon-button" data-linkki-history="undo" title="Desfazer (Ctrl+Z)" aria-label="Desfazer" ${linkkiUndoStack.length ? '' : 'disabled'}>↶</button>
-    <button type="button" class="icon-button" data-linkki-history="redo" title="Refazer (Ctrl+Shift+Z ou Ctrl+Y)" aria-label="Refazer" ${linkkiRedoStack.length ? '' : 'disabled'}>↷</button>
+  const iconStyle = 'width:25px;height:25px;display:block;stroke:currentColor;stroke-width:2.8;fill:none;stroke-linecap:round;stroke-linejoin:round';
+  const buttonStyle = 'appearance:none;border:0;background:transparent;box-shadow:none;padding:5px;min-width:36px;min-height:36px;display:inline-flex;align-items:center;justify-content:center;color:inherit;cursor:pointer';
+  return `<div style="display:inline-flex;gap:5px;align-items:center;margin-right:8px" aria-label="Histórico de edição">
+    <button type="button" style="${buttonStyle};opacity:${linkkiUndoStack.length ? 1 : .38}" data-linkki-history="undo" title="Desfazer (Ctrl+Z)" aria-label="Desfazer" ${linkkiUndoStack.length ? '' : 'disabled'}><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" style="${iconStyle}" aria-hidden="true"><path d="M9 14 4 9l5-5"/><path d="M4 9h10a6 6 0 0 1 0 12h-2"/></svg></button>
+    <button type="button" style="${buttonStyle};opacity:${linkkiRedoStack.length ? 1 : .38}" data-linkki-history="redo" title="Refazer (Ctrl+Shift+Z ou Ctrl+Y)" aria-label="Refazer" ${linkkiRedoStack.length ? '' : 'disabled'}><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" style="${iconStyle}" aria-hidden="true"><path d="m15 14 5-5-5-5"/><path d="M20 9H10a6 6 0 0 0 0 12h2"/></svg></button>
   </div>`;
 }
 window.addEventListener('keydown', event => {
@@ -1103,7 +1107,7 @@ function contentPanel() {
   return `
     <div class="panel-header">
       <div>
-        <h1>Seu conteúdo</h1>${linkkiHistoryControls()}
+        <h1>Seu conteúdo</h1>
         <p>Edite seu perfil e organize os caminhos que você quer compartilhar.</p>
       </div>
       <button class="button button--accent" data-action="add-link">+ Adicionar link</button>
@@ -1750,6 +1754,7 @@ function editorPage() {
           <button class="topbar-logo" data-app-section="editor" aria-label="Abrir editor">${brand()}</button>
         </div>
         <div class="topbar-actions">
+          ${isEditor ? linkkiHistoryControls() : ""}
           <span class="save-status">Salvo neste navegador</span>
           <a class="button button--ghost button--small" href="#public">Prévia da página</a>
           <button class="button ${state.profile.published ? "button--accent" : "button--primary"} button--small" data-action="publish">
