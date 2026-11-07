@@ -1604,10 +1604,38 @@ function linkkiMoveCommunityIndicator(animate = true) {
   const selected = nav.querySelector(`[data-community-view="${state.communityView}"]`);
   const indicator = nav.querySelector('.community-nav-indicator');
   if (!selected || !indicator) return;
-  if (!animate) indicator.style.transition = 'none';
-  indicator.style.width = `${selected.offsetWidth}px`;
-  indicator.style.transform = `translateX(${selected.offsetLeft - nav.clientLeft - 5}px)`;
-  if (!animate) requestAnimationFrame(() => { indicator.style.transition = ''; });
+  // Mantém o indicador dentro do contorno e acima do fundo branco da navegação.
+  const left = selected.offsetLeft;
+  const width = selected.offsetWidth;
+  if (!animate || !indicator.dataset.ready) {
+    indicator.style.transition = 'none';
+    indicator.style.left = `${left}px`;
+    indicator.style.width = `${width}px`;
+    // Força a posição inicial antes de permitir que o CSS anime a próxima troca.
+    void indicator.offsetWidth;
+    indicator.style.transition = '';
+    indicator.dataset.ready = '1';
+  } else {
+    indicator.style.left = `${left}px`;
+    indicator.style.width = `${width}px`;
+  }
+}
+
+function linkkiAnimateCommunityResults(results) {
+  const items = [...results.querySelectorAll('.community-section-title, .community-grid > *, .community-empty')];
+  // Anima apenas os conteúdos que mudaram; os elementos acima ficam intactos.
+  items.forEach((item, index) => {
+    if (typeof item.animate !== 'function') return;
+    item.animate([
+      { opacity: 0, transform: 'translateY(-18px)' },
+      { opacity: 1, transform: 'translateY(0)' }
+    ], {
+      duration: 580,
+      delay: Math.min(index * 65, 280),
+      easing: 'cubic-bezier(.22, 1, .36, 1)',
+      fill: 'both'
+    });
+  });
 }
 
 function linkkiRefreshCommunityResults() {
@@ -1621,8 +1649,9 @@ function linkkiRefreshCommunityResults() {
     button.classList.toggle('is-active', active);
     button.setAttribute('aria-selected', String(active));
   });
-  linkkiMoveCommunityIndicator();
+  linkkiMoveCommunityIndicator(true);
   linkkiBindCommunityResults(results);
+  linkkiAnimateCommunityResults(results);
 }
 
 function linkkiBindCommunityResults(results) {
@@ -2683,6 +2712,7 @@ function bindEvents() {
 
   document.querySelectorAll(".community-nav [data-community-view], .community-panel-header [data-community-view], .back-link[data-community-view]").forEach((button) => {
     button.addEventListener("click", () => {
+      if (state.communityView === button.dataset.communityView) return;
       state.communityView = button.dataset.communityView;
       saveState();
       if (['discover', 'mine'].includes(state.communityView) && document.querySelector('#linkki-community-results')) {

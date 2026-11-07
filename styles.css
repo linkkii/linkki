@@ -3815,24 +3815,36 @@ button.template-stat {
 @media (prefers-reduced-motion:reduce){.linkki-page-popover{animation:none}}
 @media (max-width:540px){.linkki-page-header-actions{gap:5px}.linkki-select-all{font-size:11px}.linkki-delete-pill{font-size:11px;padding:8px 11px}}
 
-/* Abas da comunidade: destaque verde desliza sem recriar o cabeçalho. */
-.editor-panel--community .community-nav { position: relative; isolation: isolate; }
-.editor-panel--community .community-nav-indicator {
-  position: absolute; top: 5px; left: 5px; height: calc(100% - 10px);
-  border-radius: 999px; background: var(--leaf); z-index: -1;
-  transition: transform 360ms cubic-bezier(.22, 1, .36, 1), width 360ms cubic-bezier(.22, 1, .36, 1);
-  pointer-events: none;
+/* Abas da comunidade: o verde é uma camada VISÍVEL atrás dos textos. */
+.editor-panel--community .community-nav {
+  position: relative;
+  isolation: isolate;
 }
-.editor-panel--community .community-nav-button { position: relative; z-index: 1; transition: color 200ms ease; }
+.editor-panel--community .community-nav-indicator {
+  position: absolute;
+  top: 5px;
+  left: 5px;
+  height: calc(100% - 10px);
+  width: 0;
+  border-radius: 999px;
+  background: var(--leaf);
+  z-index: 0;
+  pointer-events: none;
+  transition: left 420ms cubic-bezier(.22, 1, .36, 1), width 420ms cubic-bezier(.22, 1, .36, 1);
+}
+.editor-panel--community .community-nav-button {
+  position: relative;
+  z-index: 1;
+  background: transparent;
+  transition: color 200ms ease;
+}
 .editor-panel--community .community-nav-button.is-active { background: transparent; }
+/* Ao trocar de aba, os itens recebem animação via JS sem remontar o topo. */
 .editor-panel--community .community-dynamic-results .community-section-title,
 .editor-panel--community .community-dynamic-results .community-grid > *,
 .editor-panel--community .community-dynamic-results .community-empty {
-  animation: linkki-community-fade-down 500ms cubic-bezier(.22, 1, .36, 1) both;
+  animation: none;
 }
 @media (prefers-reduced-motion: reduce) {
   .editor-panel--community .community-nav-indicator { transition: none !important; }
-  .editor-panel--community .community-dynamic-results .community-section-title,
-  .editor-panel--community .community-dynamic-results .community-grid > *,
-  .editor-panel--community .community-dynamic-results .community-empty { animation: none !important; }
 }
