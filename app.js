@@ -482,6 +482,7 @@ async function initializeCloudForUser(user) {
   state.account.verified = true;
   state.account.loggedIn = true;
   cloudReady = true;
+  linkkiResetHistory();
   void loadCommunityTemplates();
   publishedFingerprint = null;
   try {
@@ -533,7 +534,92 @@ function refreshPublishButton() {
   button.classList.toggle("button--primary", !published);
 }
 
+// Histórico isolado do editor: nunca inclui credenciais, sessão ou analytics.
+const linkkiUndoStack = [];
+const linkkiRedoStack = [];
+let linkkiHistoryBaseline = null;
+let linkkiHistoryRestoring = false;
+let linkkiHistoryLastEdit = 0;
+let linkkiHistoryLastField = "";
+function linkkiEditableHistorySnapshot() {
+  return JSON.stringify({ profile: state.profile, links: state.links,
+    userPages: state.userPages, currentPageId: state.currentPageId });
+}
+function linkkiResetHistory() {
+  linkkiUndoStack.length = 0;
+  linkkiRedoStack.length = 0;
+  linkkiHistoryBaseline = linkkiEditableHistorySnapshot();
+  linkkiHistoryLastEdit = 0;
+  linkkiHistoryLastField = "";
+}
+function linkkiCaptureHistory() {
+  const next = linkkiEditableHistorySnapshot();
+  if (linkkiHistoryBaseline === null) { linkkiHistoryBaseline = next; return; }
+  if (linkkiHistoryRestoring || next === linkkiHistoryBaseline) return;
+  const focused = document.activeElement;
+  const field = focused?.matches?.('input, textarea') &&
+    focused.closest('.editor-layout, .editor-main, .link-editor, .card')
+    ? (focused.name || focused.dataset.linkField || focused.id || '') : '';
+  const now = Date.now();
+  const groupTyping = field && field === linkkiHistoryLastField && now - linkkiHistoryLastEdit < 900;
+  if (!groupTyping) {
+    linkkiUndoStack.push(linkkiHistoryBaseline);
+    if (linkkiUndoStack.length > 60) linkkiUndoStack.shift();
+  }
+  linkkiRedoStack.length = 0;
+  linkkiHistoryBaseline = next;
+  linkkiHistoryLastEdit = now;
+  linkkiHistoryLastField = field;
+  linkkiRefreshHistoryButtons();
+}
+function linkkiRefreshHistoryButtons() {
+  document.querySelectorAll('[data-linkki-history]').forEach(button => {
+    button.disabled = button.dataset.linkkiHistory === 'undo'
+      ? !linkkiUndoStack.length : !linkkiRedoStack.length;
+  });
+}
+function linkkiHistoryAction(direction) {
+  if (!state.account.loggedIn || !state.account.verified) return;
+  const from = direction === 'undo' ? linkkiUndoStack : linkkiRedoStack;
+  const to = direction === 'undo' ? linkkiRedoStack : linkkiUndoStack;
+  if (!from.length) return;
+  const previous = from.pop();
+  to.push(linkkiEditableHistorySnapshot());
+  const restored = JSON.parse(previous);
+  linkkiHistoryRestoring = true;
+  try {
+    state.profile = restored.profile;
+    state.links = restored.links;
+    state.userPages = restored.userPages;
+    state.currentPageId = restored.currentPageId;
+    linkkiHistoryBaseline = previous;
+    linkkiHistoryLastField = '';
+    saveState();
+    render();
+  } finally { linkkiHistoryRestoring = false; }
+  linkkiRefreshHistoryButtons();
+}
+function linkkiHistoryControls() {
+  return `<div style="display:flex;gap:8px;align-items:center" aria-label="Histórico de edição">
+    <button type="button" class="icon-button" data-linkki-history="undo" title="Desfazer (Ctrl+Z)" aria-label="Desfazer" ${linkkiUndoStack.length ? '' : 'disabled'}>↶</button>
+    <button type="button" class="icon-button" data-linkki-history="redo" title="Refazer (Ctrl+Shift+Z ou Ctrl+Y)" aria-label="Refazer" ${linkkiRedoStack.length ? '' : 'disabled'}>↷</button>
+  </div>`;
+}
+window.addEventListener('keydown', event => {
+  if (!(event.ctrlKey || event.metaKey) || event.altKey) return;
+  const key = event.key.toLowerCase();
+  const redo = (key === 'z' && event.shiftKey) || (key === 'y' && !event.shiftKey);
+  const undo = key === 'z' && !event.shiftKey;
+  if (!redo && !undo) return;
+  if (location.hash.replace(/^#\/?/, '') !== 'editor') return;
+  // Preserva desfazer nativo dentro de campos de texto.
+  if (document.activeElement?.matches?.('input, textarea, [contenteditable="true"]')) return;
+  event.preventDefault();
+  linkkiHistoryAction(redo ? 'redo' : 'undo');
+});
+
 function saveState() {
+  linkkiCaptureHistory();
   localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
   queueCloudSave();
   refreshPublishButton();
@@ -933,7 +1019,7 @@ function buttonShadowValue(shadow = state.profile.buttonShadow) {
   const radians = angle * Math.PI / 180;
   const x = Math.round(Math.cos(radians) * distance * 10) / 10;
   const y = Math.round(Math.sin(radians) * distance * 10) / 10;
-  return `${x}px ${y}px ${blur}px rgba(42,60,36,${opacity})`;
+  return `${x}px ${y}px ${blur}px rgba(0,0,0,${opacity})`;
 }
 
 function publicProfileMarkup(page = { profile: state.profile, links: state.links }) {
@@ -1017,7 +1103,7 @@ function contentPanel() {
   return `
     <div class="panel-header">
       <div>
-        <h1>Seu conteúdo</h1>
+        <h1>Seu conteúdo</h1>${linkkiHistoryControls()}
         <p>Edite seu perfil e organize os caminhos que você quer compartilhar.</p>
       </div>
       <button class="button button--accent" data-action="add-link">+ Adicionar link</button>
@@ -1152,7 +1238,7 @@ function appearancePanel() {
   return `
     <div class="panel-header">
       <div>
-        <h1>Aparência</h1>
+        <h1>Aparência</h1>${linkkiHistoryControls()}
         <p>Personalize cada parte da página e acompanhe o resultado na prévia.</p>
       </div>
     </div>
@@ -1816,6 +1902,9 @@ function moveLink(id, direction) {
 
 let menuKeydownController = new AbortController();
 function bindEvents() {
+  document.querySelectorAll('[data-linkki-history]').forEach(button => {
+    button.addEventListener('click', () => linkkiHistoryAction(button.dataset.linkkiHistory));
+  });
   menuKeydownController.abort();
   menuKeydownController = new AbortController();
   const setFormError = (form, message) => {
@@ -2760,4 +2849,4 @@ function bindEvents() {
 }
 
 window.addEventListener("hashchange", render);
-window.addEventListener("DOMContentLoaded", restoreSupabaseSession);
+window.addEventListener("DOMContentLoaded", () => { linkkiResetHistory(); restoreSupabaseSession(); });
