@@ -1873,10 +1873,11 @@ async function loadPublicRoute(username) {
     const loading = app.querySelector('.linkki-public-loading');
     if (loading) loading.style.background = background;
     // Insere o perfil sob o loading e só inicia suas animações na revelação.
-    app.insertAdjacentHTML('afterbegin', `<div class="linkki-public-content linkki-public-content--waiting">${publicProfileMarkup(data.public_data)}</div>`);
+    app.querySelector('.linkki-public-loading-page').insertAdjacentHTML('afterbegin', publicProfileMarkup(data.public_data));
+    app.querySelector('.linkki-public-loading-page').classList.add('linkki-public-content--waiting');
     requestAnimationFrame(() => {
       if (token !== publicRouteToken || !loading.isConnected) return;
-      const content = app.querySelector('.linkki-public-content');
+      const content = app.querySelector('.linkki-public-loading-page');
       if (content) content.classList.remove('linkki-public-content--waiting');
       loading.classList.add('linkki-public-loading--leaving');
       loading.addEventListener('transitionend', () => loading.remove(), { once: true });

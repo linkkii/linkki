@@ -3670,7 +3670,6 @@ button.template-stat {
 }
 .linkki-public-loading--leaving { opacity: 0; pointer-events: none; }
 .linkki-public-loading-video { display: block; width: clamp(110px, 22vw, 210px); height: auto; }
-.linkki-public-content { width: 100%; }
 .linkki-public-content--waiting .profile-inner > * { animation-play-state: paused !important; }
 @media (prefers-reduced-motion: reduce) {
   .linkki-public-loading { transition-duration: 100ms; }
