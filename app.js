@@ -2001,7 +2001,7 @@ function editorPage() {
       ${appMenuMarkup()}
       <div class="workspace ${isEditor ? "" : "workspace--section"}">
         ${isEditor ? sidebar() : ""}
-        <section class="editor-panel ${isEditor ? "" : "editor-panel--section"} ${state.activeTab === "community" && !isEditor ? "editor-panel--community" : ""}">${panel()}</section>
+        <section class="editor-panel ${isEditor ? "" : "editor-panel--section"} ${state.activeSection === "community" && !isEditor ? "editor-panel--community" : ""}">${panel()}</section>
         ${isEditor ? `<aside class="preview-panel" aria-label="Prévia da sua página">
           <div class="preview-wrap">
             <div class="preview-label"><span>PRÉVIA AO VIVO</span><a href="#public">Abrir ↗</a></div>
