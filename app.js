@@ -1,4 +1,6 @@
 const STORAGE_KEY = "linkki-prototype-v1";
+// Selo visual baseado no owner_id retornado pelo Supabase, nunca no nickname.
+const LINKKI_OFFICIAL_USER_ID = "75ec8fa2-22ed-4d84-bcca-c262db7bd6d6";
 const LINKKI_TURNSTILE_SITE_KEY = "0x4AAAAAAF0ZSAOsq3_DSjAb";
 const linkkiTurnstileWidgets = new WeakMap();
 function initializeTurnstile() {
@@ -1436,7 +1438,7 @@ function communityTemplateCard(template, mine = false) {
           <div><strong>${escapeHtml(template.title)}</strong><span>${escapeHtml(template.category)}</span></div>
           ${mine ? `<span class="published-badge">Publicado</span>` : ""}
         </div>
-        <div class="template-author"><span>${escapeHtml(template.initials || initials(template.author))}</span><strong>${escapeHtml(template.author)}</strong></div>
+        <div class="template-author"><span>${escapeHtml(template.initials || initials(template.author))}</span><strong>${escapeHtml(template.official ? "Linkki" : template.author)}</strong>${template.official ? `<span class="linkki-official-badge" title="Conta oficial do Linkki" aria-label="Oficial">✓ Oficial</span>` : ""}</div>
         <div class="template-stats">
           <button class="template-stat ${template.liked ? "is-liked" : ""}" data-action="like-template" data-template-id="${escapeHtml(template.id)}" aria-label="${template.liked ? "Remover curtida" : "Curtir modelo"}">♡ <span>${formatCount(template.likes)}</span></button>
           <span class="template-stat">◎ <span>${formatCount(template.uses)} usos</span></span>
@@ -1462,7 +1464,9 @@ async function loadCommunityTemplates() {
   if (error) { console.error('Comunidade:', error); showToast('Não foi possível carregar os modelos.'); return; }
   state.communityTemplates = (Array.isArray(data) ? data : []).map(item => ({
     id: item.id, ownerId: item.owner_id === owner ? 'self' : item.owner_id,
-    sourcePageId: item.source_page_id, author: item.author, initials: initials(item.author || ''),
+    sourcePageId: item.source_page_id, official: item.owner_id === LINKKI_OFFICIAL_USER_ID,
+    author: item.owner_id === LINKKI_OFFICIAL_USER_ID ? "Linkki" : item.author,
+    initials: item.owner_id === LINKKI_OFFICIAL_USER_ID ? "LK" : initials(item.author || ''),
     title: item.title, category: item.category, likes: Number(item.likes) || 0,
     uses: Number(item.uses) || 0, liked: item.liked === true, published: true,
     appearance: item.appearance
@@ -2470,7 +2474,7 @@ function bindEvents() {
       syncCurrentPageSnapshot();
       const page = state.userPages.find(item => item.id === button.dataset.pageId);
       if (!page) return;
-      const author = `${state.account.firstName || ''} ${state.account.lastName || ''}`.trim() || state.profile.name || 'Você';
+      const author = cloudUserId === LINKKI_OFFICIAL_USER_ID ? 'Linkki' : (`${state.account.firstName || ''} ${state.account.lastName || ''}`.trim() || state.profile.name || 'Você');
       const category = accountCategories.find(([id]) => id === state.account.category)?.[2] || 'Criadores';
       const result = await communityAction('linkki_community_publish', {
         p_source_page_id: page.id, p_title: page.title, p_author: author,

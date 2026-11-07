@@ -3674,3 +3674,11 @@ button.template-stat {
 @media (prefers-reduced-motion: reduce) {
   .linkki-public-loading { transition-duration: 100ms; }
 }
+
+/* Identidade visual dos modelos publicados pela conta oficial. */
+.template-author .linkki-official-badge {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: auto; height: auto; min-height: 20px; padding: 3px 8px;
+  border-radius: 999px; background: #cad593; color: #2a3c24;
+  font-size: 9px; font-weight: 800; line-height: 1; white-space: nowrap;
+}
