@@ -1394,7 +1394,7 @@ function appearancePanel() {
           ` : ""}
         </div>
 
-        <div class="effect-block">
+        <div class="effect-block linkki-shadow-block">
           <div class="effect-heading">
             <div><strong>Sombra</strong><span>Controle direção, distância e suavidade.</span></div>
             <button class="switch ${shadow.enabled ? "is-on" : ""}" data-action="toggle-shadow" aria-label="${shadow.enabled ? "Desativar sombra" : "Ativar sombra"}" aria-pressed="${shadow.enabled}"></button>
@@ -1758,16 +1758,23 @@ function accountPanel() {
   `;
 }
 
+let linkkiPageDeleteMode = false;
+const linkkiSelectedPageIds = new Set();
+
 function myPagesPanel() {
   syncCurrentPageSnapshot();
   return `
     <div class="panel-header section-panel-header">
       <div><span class="section-eyebrow">PÁGINAS</span><h1>Minhas páginas</h1></div>
-      <button class="button button--accent" data-action="create-page">+ Nova página</button>
+      <div class="linkki-page-header-actions">
+        <button class="linkki-page-trash" type="button" data-action="page-trash-mode" aria-label="Selecionar páginas para excluir" title="Selecionar páginas para excluir">${linkkiPageDeleteMode ? 'Cancelar' : '♲'}</button>
+        ${linkkiPageDeleteMode ? `<button class="linkki-select-all" type="button" data-action="page-select-all">Selecionar tudo</button><button class="linkki-delete-pill" type="button" data-action="page-delete-selected" ${linkkiSelectedPageIds.size ? '' : 'disabled'}>Apagar permanentemente${linkkiSelectedPageIds.size ? ` (${linkkiSelectedPageIds.size})` : ''}</button>` : `<button class="button button--accent" data-action="create-page">+ Nova página</button>`}
+      </div>
     </div>
     <div class="managed-pages-grid">
       ${state.userPages.map((page) => `
         <article class="managed-page-card ${state.currentPageId === page.id ? "is-current" : ""}">
+          ${linkkiPageDeleteMode ? `<label class="linkki-page-selection" title="Selecionar página"><input type="checkbox" data-page-select="${escapeHtml(page.id)}" ${linkkiSelectedPageIds.has(page.id) ? 'checked' : ''}><span></span></label>` : `<div class="linkki-page-menu-wrap"><button class="linkki-page-dots" type="button" data-page-menu="${escapeHtml(page.id)}" aria-label="Opções da página" aria-expanded="false">⋮</button><div class="linkki-page-popover" hidden><button type="button" data-page-option="rename" data-page-id="${escapeHtml(page.id)}">Renomear página</button><button type="button" data-page-option="duplicate" data-page-id="${escapeHtml(page.id)}">Duplicar página</button><button type="button" data-page-option="deactivate" data-page-id="${escapeHtml(page.id)}">${page.active ? 'Desativar página' : 'Ativar página'}</button><button type="button" class="danger" data-page-option="delete" data-page-id="${escapeHtml(page.id)}">Apagar página</button></div></div>`}
           ${templatePreviewMarkup({ ...page, author: page.profileName || page.title, initials: initials(page.profileName || page.title), previewName: page.profileName || page.title })}
           <div class="managed-page-body">
             <div class="user-page-info">
@@ -2395,6 +2402,94 @@ function bindEvents() {
     });
   });
 
+  // Gerenciamento de páginas: menu contextual e seleção múltipla.
+  const pageTrash = document.querySelector('[data-action="page-trash-mode"]');
+  pageTrash?.addEventListener('click', () => {
+    linkkiPageDeleteMode = !linkkiPageDeleteMode;
+    linkkiSelectedPageIds.clear();
+    render();
+  });
+  document.querySelector('[data-action="page-select-all"]')?.addEventListener('click', () => {
+    if (linkkiSelectedPageIds.size === state.userPages.length) linkkiSelectedPageIds.clear();
+    else state.userPages.forEach(page => linkkiSelectedPageIds.add(page.id));
+    render();
+  });
+  document.querySelectorAll('[data-page-select]').forEach(input => input.addEventListener('change', () => {
+    if (input.checked) linkkiSelectedPageIds.add(input.dataset.pageSelect);
+    else linkkiSelectedPageIds.delete(input.dataset.pageSelect);
+    const button = document.querySelector('[data-action="page-delete-selected"]');
+    if (button) {
+      button.disabled = !linkkiSelectedPageIds.size;
+      button.textContent = `Apagar permanentemente${linkkiSelectedPageIds.size ? ` (${linkkiSelectedPageIds.size})` : ''}`;
+    }
+  }));
+  async function linkkiDeletePages(ids) {
+    const pages = state.userPages.filter(page => ids.includes(page.id));
+    if (!pages.length) return;
+    if (!window.confirm(`Apagar permanentemente ${pages.length === 1 ? 'esta página' : `estas ${pages.length} páginas`}? Esta ação não pode ser desfeita.`)) return;
+    if (pages.some(page => page.active)) {
+      if (!cloudReady || !cloudUserId || !authClient) { showToast('Conecte-se para excluir a página publicada.'); return; }
+      const { error } = await authClient.from('linkki_public_pages').delete().eq('user_id', cloudUserId);
+      if (error) { showToast('Não foi possível remover a publicação.'); return; }
+      state.profile.published = false;
+      publishedFingerprint = null;
+    }
+    state.userPages = state.userPages.filter(page => !ids.includes(page.id));
+    if (!state.userPages.some(page => page.id === state.currentPageId)) {
+      const fallback = state.userPages[0];
+      if (fallback) {
+        state.currentPageId = fallback.id;
+        state.profile.name = fallback.profileName || fallback.title;
+        state.profile.published = Boolean(fallback.active);
+        if (fallback.appearance) Object.assign(state.profile, structuredClone(fallback.appearance));
+      } else {
+        const fresh = cloneDefaultState();
+        state.profile = fresh.profile;
+        state.currentPageId = 'page-principal';
+        state.userPages = seedUserPages(state.profile).slice(0, 1);
+        state.userPages[0].active = false;
+        state.profile.published = false;
+      }
+    }
+    linkkiSelectedPageIds.clear();
+    linkkiPageDeleteMode = false;
+    saveState(); render(); showToast('Página(s) apagada(s).');
+  }
+  document.querySelector('[data-action="page-delete-selected"]')?.addEventListener('click', () => void linkkiDeletePages([...linkkiSelectedPageIds]));
+  document.querySelectorAll('[data-page-menu]').forEach(button => button.addEventListener('click', event => {
+    event.stopPropagation();
+    const menu = button.nextElementSibling;
+    const shouldOpen = menu.hidden;
+    document.querySelectorAll('.linkki-page-popover').forEach(other => { other.hidden = true; });
+    document.querySelectorAll('[data-page-menu]').forEach(other => other.setAttribute('aria-expanded', 'false'));
+    menu.hidden = !shouldOpen;
+    button.setAttribute('aria-expanded', String(shouldOpen));
+  }));
+  document.querySelectorAll('[data-page-option]').forEach(button => button.addEventListener('click', () => {
+    const page = state.userPages.find(item => item.id === button.dataset.pageId);
+    if (!page) return;
+    const option = button.dataset.pageOption;
+    if (option === 'delete') { void linkkiDeletePages([page.id]); return; }
+    if (option === 'deactivate') {
+      document.querySelector(`[data-action="toggle-page-status"][data-page-id="${CSS.escape(page.id)}"]`)?.click();
+      return;
+    }
+    if (option === 'rename') {
+      const title = window.prompt('Novo nome da página:', page.title);
+      if (title === null) return;
+      if (!title.trim()) { showToast('Digite um nome para a página.'); return; }
+      page.title = title.trim().slice(0, 80);
+    }
+    if (option === 'duplicate') {
+      syncCurrentPageSnapshot();
+      const duplicate = structuredClone(page);
+      duplicate.id = `page-${crypto.randomUUID()}`;
+      duplicate.title = `${page.title} (cópia)`;
+      duplicate.active = false;
+      state.userPages.push(duplicate);
+    }
+    saveState(); render();
+  }));
   document.querySelector('[data-action="create-page"]')?.addEventListener("click", () => {
     syncCurrentPageSnapshot();
     const number = state.userPages.length + 1;

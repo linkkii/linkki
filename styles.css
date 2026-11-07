@@ -3739,3 +3739,59 @@ button.template-stat {
 .linkki-background-image-card .linkki-background-gallery { margin-top:14px; padding-top:14px; }
 .linkki-background-image-toggle { display:inline-flex; align-items:center; gap:9px; font-size:13px; font-weight:650; color:var(--root); cursor:pointer; }
 .linkki-background-image-toggle input { accent-color:#a1c349; width:17px; height:17px; }
+
+/* Sombra: apenas estética dos quatro sliders, igual ao controle Hero. */
+.linkki-shadow-block .range-control input[type="range"] {
+  display: block;
+  width: 100%;
+  height: 7px;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: #d5d7d3;
+  appearance: none;
+  -webkit-appearance: none;
+  outline: none;
+  cursor: pointer;
+}
+.linkki-shadow-block .range-control input[type="range"]::-webkit-slider-thumb {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 21px;
+  height: 21px;
+  border: 0;
+  border-radius: 50%;
+  background: #a1c349;
+  cursor: grab;
+}
+.linkki-shadow-block .range-control input[type="range"]::-moz-range-thumb {
+  width: 21px;
+  height: 21px;
+  border: 0;
+  border-radius: 50%;
+  background: #a1c349;
+  cursor: grab;
+}
+
+/* Ações de gerenciamento em Minhas páginas */
+.linkki-page-header-actions{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.linkki-page-trash{border:0;background:transparent;color:#d34a4a;cursor:pointer;font-size:25px;padding:7px 12px;border-radius:12px}
+.linkki-page-trash:hover{background:#fce8e8}
+.linkki-delete-pill{border:0;border-radius:999px;background:#d83b3b;color:#fff;font-weight:750;padding:13px 19px;cursor:pointer}
+.linkki-delete-pill:disabled{opacity:.45;cursor:default}
+.linkki-select-all{border:0;background:transparent;color:var(--root);font-weight:750;cursor:pointer;padding:12px}
+.managed-page-card{position:relative;overflow:visible}
+.managed-page-card .template-preview{border-radius:20px 20px 0 0;overflow:hidden}
+.linkki-page-menu-wrap{position:absolute;top:12px;right:12px;z-index:12}
+.linkki-page-dots{width:36px;height:36px;border:0;border-radius:50%;background:rgba(255,255,255,.95);color:#273b25;font-size:25px;line-height:1;cursor:pointer;box-shadow:0 2px 9px #0002}
+.linkki-page-popover{position:absolute;top:42px;right:0;min-width:200px;padding:7px;background:#fff;border:1px solid #e1e4dc;border-radius:14px;box-shadow:0 12px 32px #0002;display:grid;gap:2px}
+.linkki-page-popover[hidden]{display:none}
+.linkki-page-popover button{border:0;background:transparent;padding:11px 12px;text-align:left;border-radius:9px;cursor:pointer;font-weight:600;color:#283b25}
+.linkki-page-popover button:hover{background:#f0f3e9}
+.linkki-page-popover button.danger{color:#c53232}
+.linkki-page-selection{position:absolute;top:14px;right:14px;z-index:12;cursor:pointer}
+.linkki-page-selection input{position:absolute;opacity:0;width:32px;height:32px;cursor:pointer}
+.linkki-page-selection span{display:block;width:28px;height:28px;border-radius:50%;background:#fff;border:2px solid #a8b2a3;box-shadow:0 2px 8px #0002}
+.linkki-page-selection input:checked+span{background:#9fc544;border-color:#9fc544}
+.linkki-page-selection input:checked+span:after{content:'✓';display:grid;place-items:center;color:#fff;font-weight:900}
+.linkki-page-selection input:focus-visible+span{outline:3px solid #9fc544;outline-offset:3px}
