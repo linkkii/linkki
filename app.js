@@ -495,6 +495,7 @@ async function initializeCloudForUser(user) {
     }
   } catch (error) { console.warn('Linkki: estado da publicação indisponível', error); }
   enforceSingleActivePage();
+  editHistory.past = []; editHistory.future = []; editHistory.current = editableSnapshot();
   localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
   if (!data?.data) queueCloudSave();
 }
@@ -533,7 +534,47 @@ function refreshPublishButton() {
   button.classList.toggle("button--primary", !published);
 }
 
+// Histórico de edição: guarda apenas o conteúdo editável, nunca sessão ou autenticação.
+const editHistory = { past: [], future: [], current: null, restoring: false };
+function editableSnapshot() {
+  return JSON.stringify({ profile: state.profile, links: state.links, userPages: state.userPages });
+}
+editHistory.current = editableSnapshot();
+function trackEditHistory() {
+  const next = editableSnapshot();
+  if (editHistory.restoring || next === editHistory.current) return;
+  editHistory.past.push(editHistory.current);
+  if (editHistory.past.length > 80) editHistory.past.shift();
+  editHistory.future = [];
+  editHistory.current = next;
+  updateHistoryButtons();
+}
+function updateHistoryButtons() {
+  document.querySelectorAll('[data-action="undo-edit"]').forEach(b => b.disabled = !editHistory.past.length);
+  document.querySelectorAll('[data-action="redo-edit"]').forEach(b => b.disabled = !editHistory.future.length);
+}
+function restoreEditSnapshot(snapshot) {
+  const data = JSON.parse(snapshot);
+  editHistory.restoring = true;
+  state.profile = data.profile;
+  state.links = data.links;
+  state.userPages = data.userPages;
+  editHistory.current = snapshot;
+  saveState();
+  editHistory.restoring = false;
+  render();
+  updateHistoryButtons();
+}
+function stepEditHistory(direction) {
+  const source = direction === 'undo' ? editHistory.past : editHistory.future;
+  const destination = direction === 'undo' ? editHistory.future : editHistory.past;
+  if (!source.length) return;
+  destination.push(editHistory.current);
+  restoreEditSnapshot(source.pop());
+  showToast(direction === 'undo' ? 'Alteração desfeita.' : 'Alteração refeita.');
+}
 function saveState() {
+  trackEditHistory();
   localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
   queueCloudSave();
   refreshPublishButton();
@@ -933,7 +974,7 @@ function buttonShadowValue(shadow = state.profile.buttonShadow) {
   const radians = angle * Math.PI / 180;
   const x = Math.round(Math.cos(radians) * distance * 10) / 10;
   const y = Math.round(Math.sin(radians) * distance * 10) / 10;
-  return `${x}px ${y}px ${blur}px rgba(42,60,36,${opacity})`;
+  return `${x}px ${y}px ${blur}px rgba(0,0,0,${opacity})`;
 }
 
 function publicProfileMarkup(page = { profile: state.profile, links: state.links }) {
@@ -1664,6 +1705,10 @@ function editorPage() {
           <button class="topbar-logo" data-app-section="editor" aria-label="Abrir editor">${brand()}</button>
         </div>
         <div class="topbar-actions">
+          <div class="edit-history-actions" aria-label="Histórico de alterações">
+            <button type="button" class="edit-history-button" data-action="undo-edit" title="Desfazer (Ctrl+Z)" aria-label="Desfazer" ${editHistory.past.length ? '' : 'disabled'}>↶</button>
+            <button type="button" class="edit-history-button" data-action="redo-edit" title="Refazer (Ctrl+Shift+Z ou Ctrl+Y)" aria-label="Refazer" ${editHistory.future.length ? '' : 'disabled'}>↷</button>
+          </div>
           <span class="save-status">Salvo neste navegador</span>
           <a class="button button--ghost button--small" href="#public">Prévia da página</a>
           <button class="button ${state.profile.published ? "button--accent" : "button--primary"} button--small" data-action="publish">
@@ -1816,6 +1861,9 @@ function moveLink(id, direction) {
 
 let menuKeydownController = new AbortController();
 function bindEvents() {
+  document.querySelector('[data-action="undo-edit"]')?.addEventListener('click', () => stepEditHistory('undo'));
+  document.querySelector('[data-action="redo-edit"]')?.addEventListener('click', () => stepEditHistory('redo'));
+  updateHistoryButtons();
   menuKeydownController.abort();
   menuKeydownController = new AbortController();
   const setFormError = (form, message) => {
@@ -2761,3 +2809,14 @@ function bindEvents() {
 
 window.addEventListener("hashchange", render);
 window.addEventListener("DOMContentLoaded", restoreSupabaseSession);
+
+// Atalhos do editor (não interferem nos campos de texto nem em outras páginas).
+document.addEventListener('keydown', (event) => {
+  if (!(event.ctrlKey || event.metaKey) || event.altKey) return;
+  if (location.hash.replace(/^#\/?/, '') !== 'editor') return;
+  const key = event.key.toLowerCase();
+  const target = event.target;
+  // Desfaz também alterações feitas nos campos do editor.
+  if (key === 'z' && !event.shiftKey) { event.preventDefault(); stepEditHistory('undo'); }
+  else if ((key === 'z' && event.shiftKey) || key === 'y') { event.preventDefault(); stepEditHistory('redo'); }
+});
