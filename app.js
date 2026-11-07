@@ -1571,7 +1571,11 @@ async function loadRealAnalytics() {
       clicks: Number(result.clicks) || 0,
       byLink: result.by_link && typeof result.by_link === 'object' ? result.by_link : {}
     };
-    if (location.hash.replace(/^#\/?/, '') === 'editor' && state.activeTab === 'analytics') render();
+    // Atualiza os cartões diretamente: não depende do hash da URL nem recria o editor.
+    const panel = document.querySelector('[data-analytics-panel]');
+    if (panel && state.activeSection === 'editor' && state.activeTab === 'analytics') {
+      panel.outerHTML = analyticsPanel();
+    }
   } catch (error) {
     console.warn('Linkki: não foi possível carregar as métricas reais', error);
     const note = document.querySelector('[data-analytics-status]');
@@ -1586,6 +1590,7 @@ function analyticsPanel() {
   const rows = state.links.map(link => ({ title: link.title || 'Sem título', clicks: Number(analyticsMetrics.byLink[link.id]) || 0 }));
   const maxClicks = Math.max(1, ...rows.map(link => link.clicks));
   return `
+    <div data-analytics-panel>
     <div class="panel-header"><div><h1>Analytics</h1><p>Dados reais de acessos e cliques na sua página pública.</p></div></div>
     <div class="stats-grid">
       <article class="stat-card"><span>Visualizações</span><strong>${views}</strong></article>
@@ -1601,6 +1606,7 @@ function analyticsPanel() {
         </div>`).join('') : '<div class="empty-state"><strong>Sem links ainda</strong>Adicione links para acompanhar os cliques.</div>'}
     </section>
     <p data-analytics-status style="color:var(--muted);font-size:12px" aria-live="polite"></p>
+    </div>
   `;
 }
 
@@ -1880,6 +1886,11 @@ function render() {
   bindEvents();
   initializeTurnstile();
   lastRenderedRoute = route;
+  // Ao voltar ao editor com Analytics já selecionado, consulta os números atuais.
+  if (route === 'editor' && !sameRoute && state.account.loggedIn &&
+      state.activeSection === 'editor' && state.activeTab === 'analytics' && !analyticsLoading) {
+    void loadRealAnalytics();
+  }
   // Só volta ao topo ao trocar de página; ajustes na mesma tela preservam a posição.
   if (sameRoute) window.scrollTo({ top: previousScroll, behavior: "instant" });
   else window.scrollTo({ top: 0, behavior: "instant" });
