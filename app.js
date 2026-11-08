@@ -209,7 +209,7 @@ let linkkiSelectedStickerId = null;
 let linkkiStickerPreviewController = null;
 function linkkiStickerSafeSrc(src) {
   const value = String(src || '');
-  return value.length <= 140 && /^\.\/adesivos\/(?:[a-z0-9_-]+\/)*[a-z0-9_-]+\.(svg|png|webp)$/.test(value)
+  return value.length <= 140 && /^\.\/adesivos\/(?:[a-z0-9_-]+\/)*[a-z0-9_! -]+\.(svg|png|webp)$/.test(value)
     ? value : '';
 }
 function linkkiNormalizeStickers(value) {
