@@ -1,0 +1,109 @@
+{
+  "versao": 1,
+  "colecoes": [
+    {
+      "id": "pop",
+      "nome": "Pop & divertido",
+      "adesivos": [
+        {
+          "id": "coracao",
+          "nome": "Coração pop",
+          "arquivo": "./adesivos/pop/coracao.svg"
+        },
+        {
+          "id": "estrela",
+          "nome": "Estrela",
+          "arquivo": "./adesivos/pop/estrela.svg"
+        },
+        {
+          "id": "raio",
+          "nome": "Raio",
+          "arquivo": "./adesivos/pop/raio.svg"
+        },
+        {
+          "id": "smile",
+          "nome": "Smiley",
+          "arquivo": "./adesivos/pop/smile.svg"
+        }
+      ]
+    },
+    {
+      "id": "y2k",
+      "nome": "Y2K & retrô",
+      "adesivos": [
+        {
+          "id": "seta",
+          "nome": "Seta 3D",
+          "arquivo": "./adesivos/y2k/seta.svg"
+        },
+        {
+          "id": "chama",
+          "nome": "Chama",
+          "arquivo": "./adesivos/y2k/chama.svg"
+        },
+        {
+          "id": "disco",
+          "nome": "Disco",
+          "arquivo": "./adesivos/y2k/disco.svg"
+        },
+        {
+          "id": "arcoiris",
+          "nome": "Arco-íris",
+          "arquivo": "./adesivos/y2k/arcoiris.svg"
+        }
+      ]
+    },
+    {
+      "id": "natureza",
+      "nome": "Natureza",
+      "adesivos": [
+        {
+          "id": "flor",
+          "nome": "Flor",
+          "arquivo": "./adesivos/natureza/flor.svg"
+        },
+        {
+          "id": "borboleta",
+          "nome": "Borboleta",
+          "arquivo": "./adesivos/natureza/borboleta.svg"
+        },
+        {
+          "id": "cerejas",
+          "nome": "Cerejas",
+          "arquivo": "./adesivos/natureza/cerejas.svg"
+        },
+        {
+          "id": "nuvem",
+          "nome": "Nuvem",
+          "arquivo": "./adesivos/natureza/nuvem.svg"
+        }
+      ]
+    },
+    {
+      "id": "formas",
+      "nome": "Formas & detalhes",
+      "adesivos": [
+        {
+          "id": "sparkle",
+          "nome": "Brilho",
+          "arquivo": "./adesivos/formas/sparkle.svg"
+        },
+        {
+          "id": "planeta",
+          "nome": "Planeta",
+          "arquivo": "./adesivos/formas/planeta.svg"
+        },
+        {
+          "id": "fitinha",
+          "nome": "Fita",
+          "arquivo": "./adesivos/formas/fitinha.svg"
+        },
+        {
+          "id": "sol",
+          "nome": "Sol",
+          "arquivo": "./adesivos/formas/sol.svg"
+        }
+      ]
+    }
+  ]
+}
