@@ -3960,3 +3960,45 @@ button.template-stat {
 @media (prefers-reduced-motion: reduce) {
   .linkki-animation-options .choice .linkki-animation-label { animation: none !important; }
 }
+
+/* Página pública no desktop: composição vertical, como no celular.
+   Não altera o editor, a prévia ou a experiência mobile. */
+@media (min-width: 768px) {
+  .public-page {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-height: 100vh;
+    min-height: 100dvh;
+  }
+  .public-page > .profile-canvas {
+    box-sizing: border-box;
+    width: min(100%, 548px);
+    max-width: 548px;
+    min-height: 100vh;
+    min-height: 100dvh;
+    padding: 72px 24px 52px;
+    box-shadow: 0 0 70px rgba(0,0,0,.14);
+  }
+  .public-page > .profile-canvas .profile-inner {
+    width: 100%;
+    max-width: 100%;
+  }
+  .public-page > .profile-canvas .linkki-profile-cover {
+    box-sizing: border-box;
+    width: calc(100% + 48px);
+    max-width: none;
+    margin-left: -24px;
+    margin-right: -24px;
+  }
+  .public-page > .profile-canvas .linkki-profile-cover--hero {
+    height: 245px;
+    margin-top: -72px;
+    margin-bottom: -65px;
+  }
+  .public-page > .profile-canvas .linkki-profile-cover--banner {
+    height: 165px;
+    margin-top: -72px;
+    margin-bottom: -42px;
+  }
+}

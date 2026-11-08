@@ -2316,7 +2316,7 @@ function editorPage() {
 
 function publicPage() {
   return `
-    <main class="public-page">
+    <main class="public-page" style="background:${escapeHtml(linkkiBackgroundCss(state.profile))}">
       <div class="public-actions">
         <button class="public-action" data-action="share" aria-label="Copiar ou compartilhar link público" title="Copiar ou compartilhar link público">↗</button>
         <a class="public-action" href="#editor" aria-label="Editar página" title="Editar">✎</a>
