@@ -7,48 +7,48 @@
       "adesivos": [
         {
           "id": "paper-01",
-          "nome": "Paper",
+          "nome": "!",
           "arquivo": "./adesivos/paper/!.svg"
         },
         {
           "id": "paper-02",
-          "nome": "Paper 2",
-          "arquivo": "./adesivos/paper/!2.svg"
+          "nome": "! 2",
+          "arquivo": "./adesivos/paper/! 2.svg"
         },
         {
           "id": "paper-03",
-          "nome": "Paper 3",
-          "arquivo": "./adesivos/paper/!3.svg"
+          "nome": "! 3",
+          "arquivo": "./adesivos/paper/! 3.svg"
         },
         {
           "id": "paper-04",
-          "nome": "Paper 4",
-          "arquivo": "./adesivos/paper/!4.svg"
+          "nome": "! 4",
+          "arquivo": "./adesivos/paper/! 4.svg"
         },
         {
           "id": "paper-05",
-          "nome": "Paper 5",
-          "arquivo": "./adesivos/paper/!5.svg"
+          "nome": "! 5",
+          "arquivo": "./adesivos/paper/! 5.svg"
         },
         {
           "id": "paper-06",
-          "nome": "Paper 6",
-          "arquivo": "./adesivos/paper/!6.svg"
+          "nome": "! 6",
+          "arquivo": "./adesivos/paper/! 6.svg"
         },
         {
           "id": "paper-07",
-          "nome": "Paper 7",
-          "arquivo": "./adesivos/paper/!7.svg"
+          "nome": "! 7",
+          "arquivo": "./adesivos/paper/! 7.svg"
         },
         {
           "id": "paper-08",
-          "nome": "Paper 8",
-          "arquivo": "./adesivos/paper/!8.svg"
+          "nome": "! 8",
+          "arquivo": "./adesivos/paper/! 8.svg"
         },
         {
           "id": "paper-09",
-          "nome": "Paper 9",
-          "arquivo": "./adesivos/paper/!9.svg"
+          "nome": "! 9",
+          "arquivo": "./adesivos/paper/! 9.svg"
         },
         {
           "id": "paper-10",
