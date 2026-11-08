@@ -145,6 +145,7 @@ const defaultState = {
     backgroundMode: "solid",
     gradientSecondColor: "#F2F5DF",
     backgroundImage: "",
+    stickers: [],
     elementAnimation: "none",
     buttonStyle: "rounded",
     titleFont: "system",
@@ -191,12 +192,187 @@ function cloneDefaultState() {
   return JSON.parse(JSON.stringify(defaultState));
 }
 
+
+// Fundos oficiais locais e imagens enviadas pelo usuario (sem URLs arbitrarias).
+const linkkiBackgroundPresets = [
+  { id: 'aurora', name: 'Aurora', file: './fundos/aurora.svg' },
+  { id: 'ondas', name: 'Ondas', file: './fundos/ondas.svg' },
+  { id: 'dunas', name: 'Dunas', file: './fundos/dunas.svg' },
+  { id: 'noite', name: 'Noite', file: './fundos/noite.svg' }
+];
+
+// Catálogo de adesivos de origem local. Adicione novos itens em adesivos/catalogo.json.
+const linkkiBuiltinStickerCollections = [{"id":"pop","nome":"Pop & divertido","adesivos":[{"id":"coracao","nome":"Coração pop","arquivo":"./adesivos/pop/coracao.svg"},{"id":"estrela","nome":"Estrela","arquivo":"./adesivos/pop/estrela.svg"},{"id":"raio","nome":"Raio","arquivo":"./adesivos/pop/raio.svg"},{"id":"smile","nome":"Smiley","arquivo":"./adesivos/pop/smile.svg"}]},{"id":"y2k","nome":"Y2K & retrô","adesivos":[{"id":"seta","nome":"Seta 3D","arquivo":"./adesivos/y2k/seta.svg"},{"id":"chama","nome":"Chama","arquivo":"./adesivos/y2k/chama.svg"},{"id":"disco","nome":"Disco","arquivo":"./adesivos/y2k/disco.svg"},{"id":"arcoiris","nome":"Arco-íris","arquivo":"./adesivos/y2k/arcoiris.svg"}]},{"id":"natureza","nome":"Natureza","adesivos":[{"id":"flor","nome":"Flor","arquivo":"./adesivos/natureza/flor.svg"},{"id":"borboleta","nome":"Borboleta","arquivo":"./adesivos/natureza/borboleta.svg"},{"id":"cerejas","nome":"Cerejas","arquivo":"./adesivos/natureza/cerejas.svg"},{"id":"nuvem","nome":"Nuvem","arquivo":"./adesivos/natureza/nuvem.svg"}]},{"id":"formas","nome":"Formas & detalhes","adesivos":[{"id":"sparkle","nome":"Brilho","arquivo":"./adesivos/formas/sparkle.svg"},{"id":"planeta","nome":"Planeta","arquivo":"./adesivos/formas/planeta.svg"},{"id":"fitinha","nome":"Fita","arquivo":"./adesivos/formas/fitinha.svg"},{"id":"sol","nome":"Sol","arquivo":"./adesivos/formas/sol.svg"}]}];
+let linkkiStickerCollections = linkkiBuiltinStickerCollections;
+let linkkiStickerCategory = 'pop';
+let linkkiSelectedStickerId = null;
+let linkkiStickerPreviewController = null;
+function linkkiStickerSafeSrc(src) {
+  const value = String(src || '');
+  return value.length <= 140 && /^\.\/adesivos\/(?:[a-z0-9_-]+\/)*[a-z0-9_-]+\.(svg|png|webp)$/.test(value)
+    ? value : '';
+}
+function linkkiNormalizeStickers(value) {
+  if (!Array.isArray(value)) return [];
+  const limit = (n, a, b, fallback) => { const v = Number(n); return Number.isFinite(v) ? Math.min(b, Math.max(a, v)) : fallback; };
+  return value.slice(0, 40).flatMap(raw => {
+    if (!raw || !linkkiStickerSafeSrc(raw.src)) return [];
+    return [{
+      id: /^[a-zA-Z0-9-]{1,64}$/.test(raw.id || '') ? raw.id : crypto.randomUUID(),
+      src: linkkiStickerSafeSrc(raw.src),
+      x: limit(raw.x, 0, 100, 50),
+      y: limit(raw.y, 0, 100, 42),
+      size: limit(raw.size, 8, 65, 24),
+      rotation: limit(raw.rotation, -360, 360, 0)
+    }];
+  });
+}
+function linkkiStickerCollectionMarkup() {
+  const group = linkkiStickerCollections.find(x => x.id === linkkiStickerCategory) || linkkiStickerCollections[0];
+  return `<div class="linkki-sticker-collections" aria-label="Coleções de adesivos">
+    ${linkkiStickerCollections.map(c => `<button type="button" class="linkki-sticker-tab ${c.id === group?.id ? 'is-active' : ''}" data-sticker-collection="${escapeHtml(c.id)}" aria-pressed="${c.id === group?.id}">${escapeHtml(c.nome)}</button>`).join('')}
+  </div>
+  <div class="linkki-sticker-picker" aria-label="Escolher adesivo">
+    ${(group?.adesivos || []).map(s => `<button type="button" data-sticker-add="${escapeHtml(s.arquivo)}" title="Adicionar ${escapeHtml(s.nome)}" aria-label="Adicionar ${escapeHtml(s.nome)}"><img loading="lazy" draggable="false" src="${escapeHtml(s.arquivo)}" alt="" /><span>${escapeHtml(s.nome)}</span></button>`).join('')}
+  </div>`;
+}
+async function linkkiLoadStickerCatalog() {
+  try {
+    const response = await fetch('./adesivos/catalogo.json', { cache: 'no-store' });
+    if (!response.ok) return;
+    const json = await response.json();
+    const safe = Array.isArray(json?.colecoes) ? json.colecoes.slice(0, 24).flatMap(c => {
+      if (!c || !/^[a-z0-9_-]{1,36}$/.test(c.id || '') || !Array.isArray(c.adesivos)) return [];
+      const adesivos = c.adesivos.slice(0, 100).flatMap(s => {
+        const arquivo = linkkiStickerSafeSrc(s?.arquivo);
+        return arquivo ? [{ id: String(s.id || arquivo).slice(0, 80), nome: String(s.nome || 'Adesivo').slice(0, 60), arquivo }] : [];
+      });
+      return adesivos.length ? [{ id: c.id, nome: String(c.nome || c.id).slice(0, 60), adesivos }] : [];
+    }) : [];
+    if (!safe.length) return;
+    linkkiStickerCollections = safe;
+    const root = document.querySelector('[data-sticker-gallery]');
+    if (root) root.innerHTML = linkkiStickerCollectionMarkup();
+  } catch (error) { console.warn('Linkki: catálogo de adesivos indisponível, usando os itens padrão.', error); }
+}
+function linkkiStickersMarkup(stickers, editing = false, compact = false) {
+  const list = linkkiNormalizeStickers(stickers);
+  if (!list.length) return '';
+  return `<div class="linkki-sticker-layer ${editing ? 'linkki-sticker-layer--editing' : ''} ${compact ? 'linkki-sticker-layer--compact' : ''}" ${editing ? 'aria-label="Adesivos editáveis"' : 'aria-hidden="true"'}>
+   ${list.map(s => `<div class="linkki-sticker ${editing && s.id === linkkiSelectedStickerId ? 'is-selected' : ''}" data-linkki-sticker="${escapeHtml(s.id)}" style="left:${s.x}%;top:${s.y}%;width:${s.size}%;transform:translate(-50%,-50%) rotate(${s.rotation}deg)">
+     <img draggable="false" src="${escapeHtml(s.src)}" alt="" />
+     ${editing ? `<span class="linkki-sticker-selection" aria-hidden="true"></span><span class="linkki-sticker-handle linkki-sticker-handle--tl" data-sticker-action="resize"></span><span class="linkki-sticker-handle linkki-sticker-handle--tr" data-sticker-action="resize"></span><span class="linkki-sticker-handle linkki-sticker-handle--bl" data-sticker-action="resize"></span><span class="linkki-sticker-handle linkki-sticker-handle--br" data-sticker-action="resize"></span><button class="linkki-sticker-tool linkki-sticker-tool--rotate" type="button" data-sticker-action="rotate" title="Girar adesivo" aria-label="Girar adesivo">↻</button><button class="linkki-sticker-tool linkki-sticker-tool--remove" type="button" data-sticker-action="delete" title="Excluir adesivo" aria-label="Excluir adesivo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3m3 0-1 13H7L6 7m4 4v6m4-6v6" stroke-linejoin="round" stroke-linecap="round"/></svg></button>` : ''}
+   </div>`).join('')}</div>`;
+}
+function linkkiRefreshStickerSelection(preview) {
+  preview.querySelectorAll('[data-linkki-sticker]').forEach(element => {
+    element.classList.toggle('is-selected', element.dataset.linkkiSticker === linkkiSelectedStickerId);
+  });
+}
+function linkkiBindStickerEditor() {
+  linkkiStickerPreviewController?.abort();
+  linkkiStickerPreviewController = new AbortController();
+  const signal = linkkiStickerPreviewController.signal;
+  // Delegação: a galeria e o preview podem mudar sem duplicar listeners.
+  document.querySelector('[data-sticker-gallery]')?.addEventListener('click', event => {
+    const category = event.target.closest('[data-sticker-collection]');
+    if (category) {
+      linkkiStickerCategory = category.dataset.stickerCollection;
+      event.currentTarget.innerHTML = linkkiStickerCollectionMarkup();
+      return;
+    }
+    const pick = event.target.closest('[data-sticker-add]');
+    if (!pick) return;
+    const src = linkkiStickerSafeSrc(pick.dataset.stickerAdd);
+    if (!src) return;
+    const list = linkkiNormalizeStickers(state.profile.stickers);
+    if (list.length >= 40) { showToast('Limite de 40 adesivos por página.'); return; }
+    const sticker = {id: crypto.randomUUID(),src,x:50,y:42,size:26,rotation:0};
+    state.profile.stickers = [...list, sticker];
+    linkkiSelectedStickerId = sticker.id;
+    saveState();
+    const counter = document.querySelector('.linkki-sticker-counter');
+    if (counter) counter.textContent = `${state.profile.stickers.length} na página`;
+    syncLivePreview();
+  }, {signal});
+  // Um clique fora do adesivo encerra a seleção, inclusive fora do celular.
+  document.addEventListener('pointerdown', event => {
+    if (linkkiSelectedStickerId && !event.target.closest('.preview-screen [data-linkki-sticker]')) {
+      linkkiSelectedStickerId = null;
+      const activePreview = document.querySelector('.preview-screen');
+      if (activePreview) linkkiRefreshStickerSelection(activePreview);
+    }
+  }, {signal});
+  const preview = document.querySelector('.preview-screen');
+  if (!preview) return;
+  preview.addEventListener('pointerdown', event => {
+    const stickerElement = event.target.closest('[data-linkki-sticker]');
+    if (!stickerElement) {
+      if (linkkiSelectedStickerId) { linkkiSelectedStickerId = null; linkkiRefreshStickerSelection(preview); }
+      return;
+    }
+    const id = stickerElement.dataset.linkkiSticker;
+    const sticker = state.profile.stickers?.find(item => item.id === id);
+    if (!sticker) return;
+    event.preventDefault();
+    linkkiSelectedStickerId = id;
+    linkkiRefreshStickerSelection(preview);
+    const action = event.target.closest('[data-sticker-action]')?.dataset.stickerAction || 'move';
+    if (action === 'delete') {
+      state.profile.stickers = state.profile.stickers.filter(item => item.id !== id);
+      linkkiSelectedStickerId = null;
+      saveState();
+      const counter = document.querySelector('.linkki-sticker-counter');
+      if (counter) counter.textContent = `${state.profile.stickers.length} na página`;
+      syncLivePreview();
+      return;
+    }
+    const canvas = preview.querySelector('.profile-canvas');
+    if (!canvas) return;
+    const rect = canvas.getBoundingClientRect();
+    const base = {...sticker};
+    const angle = (e) => Math.atan2(e.clientY - (rect.top + rect.height * base.y/100), e.clientX - (rect.left + rect.width * base.x/100)) * 180 / Math.PI;
+    const startRotation = angle(event);
+    const cx = rect.left + rect.width * base.x / 100;
+    const cy = rect.top + rect.height * base.y / 100;
+    const startDistance = Math.max(10, Math.hypot(event.clientX-cx, event.clientY-cy));
+    const pointerId = event.pointerId;
+    const gesture = new AbortController();
+    let changed = false;
+    const moved = e => {
+      if (e.pointerId !== pointerId) return;
+      changed = true;
+      if (action === 'move') {
+        sticker.x = Math.max(0, Math.min(100, base.x + (e.clientX - event.clientX) / rect.width * 100));
+        sticker.y = Math.max(0, Math.min(100, base.y + (e.clientY - event.clientY) / rect.height * 100));
+      } else if (action === 'resize') {
+        sticker.size = Math.max(8, Math.min(65, Math.round((base.size * Math.hypot(e.clientX-cx, e.clientY-cy) / startDistance) * 10) / 10));
+      } else if (action === 'rotate') {
+        sticker.rotation = Math.round(base.rotation + angle(e) - startRotation);
+      }
+      stickerElement.style.left = sticker.x + '%';
+      stickerElement.style.top = sticker.y + '%';
+      stickerElement.style.width = sticker.size + '%';
+      stickerElement.style.transform = `translate(-50%, -50%) rotate(${sticker.rotation}deg)`;
+    };
+    const end = e => {
+      if (e.pointerId !== pointerId) return;
+      gesture.abort();
+      if (changed) saveState();
+    };
+    window.addEventListener('pointermove', moved, {signal: gesture.signal});
+    window.addEventListener('pointerup', end, {signal: gesture.signal});
+    window.addEventListener('pointercancel', end, {signal: gesture.signal});
+  }, {signal});
+}
+
 function appearanceSnapshot(profile) {
   return {
     customColors: JSON.parse(JSON.stringify(profile.customColors)),
     backgroundMode: profile.backgroundMode || "solid",
     gradientSecondColor: profile.gradientSecondColor || "#F2F5DF",
     backgroundImage: linkkiSafeBackgroundImage(profile.backgroundImage),
+    stickers: linkkiNormalizeStickers(profile.stickers),
     elementAnimation: profile.elementAnimation || "none",
     heroPhotoZoom: profile.heroPhotoZoom ?? 100,
     heroPhotoX: profile.heroPhotoX ?? 50,
@@ -288,6 +464,7 @@ function loadState() {
         ...base.profile.buttonShadow,
         ...(parsed.profile?.buttonShadow || {}),
       },
+      stickers: linkkiNormalizeStickers(parsed.profile?.stickers),
       customFonts: Array.isArray(parsed.profile?.customFonts) ? parsed.profile.customFonts : [],
       recentFonts: Array.isArray(parsed.profile?.recentFonts) ? parsed.profile.recentFonts : base.profile.recentFonts,
       fontViews: {
@@ -401,7 +578,7 @@ function reportCloudError(error) {
 // Apenas os campos destinados à página pública são enviados para esta tabela.
 function publicPageSnapshot() {
   const profile = structuredClone(state.profile);
-  const allowed = ['name','username','bio','avatar','avatarLayout','bannerImage','heroPhotoZoom','heroPhotoX','heroPhotoY','avatarBorder','customColors','backgroundMode','gradientSecondColor','backgroundImage','elementAnimation','buttonStyle','buttonBorder','buttonShadow','titleFont','bodyFont','customFonts'];
+  const allowed = ['name','username','bio','avatar','avatarLayout','bannerImage','heroPhotoZoom','heroPhotoX','heroPhotoY','avatarBorder','customColors','backgroundMode','gradientSecondColor','backgroundImage','stickers','elementAnimation','buttonStyle','buttonBorder','buttonShadow','titleFont','bodyFont','customFonts'];
   const safeProfile = Object.fromEntries(allowed.filter(k => Object.hasOwn(profile,k)).map(k => [k,profile[k]]));
   return { profile: safeProfile, links: state.links.filter(link => link.visible).map(link => ({ id: link.id, title: link.title, url: link.url, visible: true })) };
 }
@@ -416,7 +593,7 @@ async function syncPublicPage(owner, snapshot) {
     return;
   }
   const { error } = await authClient.from('linkki_public_pages').upsert({
-    user_id: owner, username, public_data: { profile: Object.fromEntries(['name','username','bio','avatar','avatarLayout','bannerImage','heroPhotoZoom','heroPhotoX','heroPhotoY','avatarBorder','customColors','backgroundMode','gradientSecondColor','backgroundImage','elementAnimation','buttonStyle','buttonBorder','buttonShadow','titleFont','bodyFont','customFonts'].filter(k => Object.hasOwn(snapshot.profile,k)).map(k => [k,snapshot.profile[k]])), links: snapshot.links.filter(link => link.visible).map(link => ({ id: link.id, title: link.title, url: link.url, visible: true })) }, updated_at: new Date().toISOString()
+    user_id: owner, username, public_data: { profile: Object.fromEntries(['name','username','bio','avatar','avatarLayout','bannerImage','heroPhotoZoom','heroPhotoX','heroPhotoY','avatarBorder','customColors','backgroundMode','gradientSecondColor','backgroundImage','stickers','elementAnimation','buttonStyle','buttonBorder','buttonShadow','titleFont','bodyFont','customFonts'].filter(k => Object.hasOwn(snapshot.profile,k)).map(k => [k,snapshot.profile[k]])), links: snapshot.links.filter(link => link.visible).map(link => ({ id: link.id, title: link.title, url: link.url, visible: true })) }, updated_at: new Date().toISOString()
   }, { onConflict: 'user_id' });
   if (error) throw error;
 }
@@ -424,7 +601,7 @@ async function syncPublicPage(owner, snapshot) {
 function publicPublishPayload() {
   const snapshot = editableSnapshot();
   const profile = snapshot.profile;
-  const allowed = ['name','username','bio','avatar','avatarLayout','bannerImage','heroPhotoZoom','heroPhotoX','heroPhotoY','avatarBorder','customColors','backgroundMode','gradientSecondColor','backgroundImage','elementAnimation','buttonStyle','buttonBorder','buttonShadow','titleFont','bodyFont','customFonts'];
+  const allowed = ['name','username','bio','avatar','avatarLayout','bannerImage','heroPhotoZoom','heroPhotoX','heroPhotoY','avatarBorder','customColors','backgroundMode','gradientSecondColor','backgroundImage','stickers','elementAnimation','buttonStyle','buttonBorder','buttonShadow','titleFont','bodyFont','customFonts'];
   return {
     profile: Object.fromEntries(allowed.filter(k => Object.hasOwn(profile,k)).map(k => [k,profile[k]])),
     links: snapshot.links.filter(link => link.visible).map(link => ({ id: link.id, title: link.title, url: link.url, visible: true }))
@@ -678,7 +855,7 @@ function syncLivePreview() {
   const preview = document.querySelector(".preview-screen");
   if (preview) {
     const next = document.createElement("div");
-    next.innerHTML = publicProfileMarkup();
+    next.innerHTML = publicProfileMarkup(undefined, true);
     const currentCanvas = preview.firstElementChild;
     const nextCanvas = next.firstElementChild;
     if (currentCanvas && nextCanvas) patchPreviewNode(currentCanvas, nextCanvas);
@@ -1039,13 +1216,6 @@ function buttonShadowValue(shadow = state.profile.buttonShadow) {
 }
 
 
-// Fundos oficiais locais e imagens enviadas pelo usuario (sem URLs arbitrarias).
-const linkkiBackgroundPresets = [
-  { id: 'aurora', name: 'Aurora', file: './fundos/aurora.svg' },
-  { id: 'ondas', name: 'Ondas', file: './fundos/ondas.svg' },
-  { id: 'dunas', name: 'Dunas', file: './fundos/dunas.svg' },
-  { id: 'noite', name: 'Noite', file: './fundos/noite.svg' }
-];
 function linkkiSafeBackgroundImage(value) {
   const image = String(value || '');
   if (linkkiBackgroundPresets.some(p => p.file === image)) return image;
@@ -1063,7 +1233,7 @@ function linkkiBackgroundCss(profile) {
     ? `linear-gradient(180deg, ${first} 0%, ${second} 100%)` : first;
 }
 
-function publicProfileMarkup(page = { profile: state.profile, links: state.links }) {
+function publicProfileMarkup(page = { profile: state.profile, links: state.links }, editing = false) {
   const profile = page.profile;
   const visibleLinks = page.links.filter((link) => link.visible);
   const custom = profile.customColors || { background: "#CAD593", text: "#2A3C24", buttonBackground: "#2A3C24", buttonText: "#CAD593" };
@@ -1116,6 +1286,7 @@ function publicProfileMarkup(page = { profile: state.profile, links: state.links
         </div>
         <a class="profile-brand" href="#home" aria-label="Linkki"><img class="profile-brand-image" src="./logo-linkki.png" alt="" /></a>
       </div>
+      ${linkkiStickersMarkup(profile.stickers, editing)}
     </div>
   `;
 }
@@ -1347,6 +1518,12 @@ function appearancePanel() {
             </div>
     </section>
 
+    <section class="card linkki-stickers-card">
+      <div class="card-title"><h2>Adesivos</h2><span class="linkki-sticker-counter">${linkkiNormalizeStickers(state.profile.stickers).length} na página</span></div>
+      <p class="linkki-setting-description">Clique em um adesivo para adicionar. Na prévia, arraste para mover, use as alças para aumentar e o botão de girar para rotacionar. Clique fora para esconder os controles.</p>
+      <div data-sticker-gallery>${linkkiStickerCollectionMarkup()}</div>
+    </section>
+
     <section class="card">
       <div class="card-title"><h2>Foto de perfil</h2></div>
       <div class="effect-block">
@@ -1483,6 +1660,7 @@ function templatePreviewMarkup(item) {
       </div>
       <small><img class="template-brand-image" src="./logo-linkki.png" alt="Linkki" /></small>
       </div>
+      ${linkkiStickersMarkup(Array.isArray(appearance.stickers) ? appearance.stickers : preview.stickers, false, true)}
     </div>
   `;
 }
@@ -1524,6 +1702,7 @@ function linkkiLocalPagePreview(page) {
     heroPhotoZoom: a.heroPhotoZoom ?? p.heroPhotoZoom ?? 100,
     heroPhotoX: a.heroPhotoX ?? p.heroPhotoX ?? 50,
     heroPhotoY: a.heroPhotoY ?? p.heroPhotoY ?? 50,
+    stickers: linkkiNormalizeStickers(current ? p.stickers : a.stickers),
     name: page.profileName || p.name || page.title || '',
     username: page.username || state.account.username || '',
     links: (Array.isArray(page.previewLinks) ? page.previewLinks : state.links.filter(l => l.visible))
@@ -1822,6 +2001,7 @@ function linkkiBindCommunityResults(results) {
       state.profile.backgroundMode = appearance.backgroundMode || 'solid';
       state.profile.gradientSecondColor = appearance.gradientSecondColor || '#F2F5DF';
       state.profile.backgroundImage = linkkiSafeBackgroundImage(appearance.backgroundImage);
+      state.profile.stickers = linkkiNormalizeStickers(Array.isArray(appearance.stickers) ? appearance.stickers : appearance.previewSnapshot?.stickers);
       state.profile.elementAnimation = appearance.elementAnimation || 'none';
       state.profile.buttonStyle = appearance.buttonStyle;
       state.profile.buttonBorder = appearance.buttonBorder;
@@ -2127,7 +2307,7 @@ function editorPage() {
         ${isEditor ? `<aside class="preview-panel" aria-label="Prévia da sua página">
           <div class="preview-wrap">
             <div class="preview-label"><span>PRÉVIA AO VIVO</span><a href="#public">Abrir ↗</a></div>
-            <div class="preview-phone"><div class="preview-screen">${publicProfileMarkup()}</div></div>
+            <div class="preview-phone"><div class="preview-screen">${publicProfileMarkup(undefined, true)}</div></div>
           </div>
         </aside>` : ""}
       </div>
@@ -2329,6 +2509,7 @@ function bindEvents() {
   document.querySelectorAll('[data-linkki-history]').forEach(button => {
     button.addEventListener('click', () => linkkiHistoryAction(button.dataset.linkkiHistory));
   });
+  linkkiBindStickerEditor();
   menuKeydownController.abort();
   menuKeydownController = new AbortController();
   const setFormError = (form, message) => {
@@ -2916,6 +3097,7 @@ function linkkiPageModal({ title, message = '', value, danger = false, confirmLa
       state.profile.backgroundMode = appearance.backgroundMode || "solid";
       state.profile.gradientSecondColor = appearance.gradientSecondColor || "#F2F5DF";
       state.profile.backgroundImage = linkkiSafeBackgroundImage(appearance.backgroundImage);
+      state.profile.stickers = linkkiNormalizeStickers(Array.isArray(appearance.stickers) ? appearance.stickers : appearance.previewSnapshot?.stickers);
       state.profile.elementAnimation = appearance.elementAnimation || "none";
       state.profile.buttonStyle = appearance.buttonStyle;
       state.profile.buttonBorder = appearance.buttonBorder;
@@ -2945,6 +3127,7 @@ function linkkiPageModal({ title, message = '', value, danger = false, confirmLa
         if (page.appearance) {
           const appearance = JSON.parse(JSON.stringify(page.appearance));
           Object.assign(state.profile, appearance);
+          state.profile.stickers = linkkiNormalizeStickers(appearance.stickers);
           state.profile.avatar = page.profileAvatar ?? state.profile.avatar;
           state.profile.avatarLayout = page.avatarLayout || appearance.previewSnapshot?.avatarLayout || 'classic';
           state.profile.bannerImage = page.bannerImage || '';
@@ -3555,4 +3738,4 @@ function linkkiPageModal({ title, message = '', value, danger = false, confirmLa
 }
 
 window.addEventListener("hashchange", render);
-window.addEventListener("DOMContentLoaded", () => { linkkiResetHistory(); restoreSupabaseSession(); });
+window.addEventListener("DOMContentLoaded", () => { linkkiResetHistory(); restoreSupabaseSession(); void linkkiLoadStickerCatalog(); });

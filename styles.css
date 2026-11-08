@@ -3909,3 +3909,34 @@ button.template-stat {
 .template-preview.template-preview--hero { padding-top: 155px; }
 .template-preview .template-mini-cover--banner { height: 70px; }
 .template-preview .template-mini-cover--banner + .template-mini-content { padding-top: 32px; }
+
+/* Adesivos: galeria discreta e controles de transformação no preview */
+.linkki-sticker-counter { font-size: 11px; color: var(--muted); font-weight: 600; }
+.linkki-stickers-card .linkki-setting-description { margin-bottom: 15px; line-height: 1.55; }
+.linkki-sticker-collections { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 13px; }
+.linkki-sticker-tab { border: 1px solid var(--line); padding: 8px 14px; border-radius: 999px; background: #fff; color: var(--root); font: inherit; font-size: 12px; font-weight: 750; cursor: pointer; }
+.linkki-sticker-tab.is-active { background: var(--leaf); border-color: var(--leaf); }
+.linkki-sticker-picker { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 10px; }
+.linkki-sticker-picker button { min-width: 0; min-height: 107px; border: 1px solid var(--line); border-radius: 14px; background: var(--paper); display: grid; justify-items: center; align-content: center; gap: 5px; padding: 10px; color: var(--root); cursor: pointer; transition: border-color .18s,transform .18s; }
+.linkki-sticker-picker button:hover { border-color: var(--sprout); transform: translateY(-2px); }
+.linkki-sticker-picker img { display: block; width: 64px; height: 64px; object-fit: contain; }
+.linkki-sticker-picker span { font-size: 10px; text-align: center; }
+.profile-canvas, .template-preview { position: relative; }
+.linkki-sticker-layer { position: absolute; inset: 0; z-index: 8; pointer-events: none; }
+.linkki-sticker { position: absolute; aspect-ratio: 1; pointer-events: none; transform-origin: center center; user-select: none; -webkit-user-select: none; }
+.linkki-sticker img { display: block; width: 100%; height: 100%; object-fit: contain; pointer-events: none; user-select: none; -webkit-user-drag: none; }
+.linkki-sticker-layer--editing .linkki-sticker { pointer-events: auto; cursor: grab; touch-action: none; }
+.linkki-sticker-layer--editing .linkki-sticker:active { cursor: grabbing; }
+.linkki-sticker-selection, .linkki-sticker-handle, .linkki-sticker-tool { display: none; }
+.linkki-sticker-layer--editing .linkki-sticker.is-selected .linkki-sticker-selection { display: block; position: absolute; inset: -2px; border: 2px solid #D82AF2; pointer-events: none; }
+.linkki-sticker-layer--editing .linkki-sticker.is-selected .linkki-sticker-handle { display: block; position: absolute; width: 11px; height: 11px; background: #fff; border: 2px solid #C823ED; border-radius: 2px; cursor: nwse-resize; z-index: 3; }
+.linkki-sticker-handle--tl { left: -7px; top: -7px; }
+.linkki-sticker-handle--tr { right: -7px; top: -7px; }
+.linkki-sticker-handle--bl { left: -7px; bottom: -7px; }
+.linkki-sticker-handle--br { right: -7px; bottom: -7px; }
+.linkki-sticker-layer--editing .linkki-sticker.is-selected .linkki-sticker-tool { display: grid; place-items: center; position: absolute; left: 50%; translate: -50% 0; width: 31px; height: 31px; background: #fff; color: #453947; border: 0; border-radius: 50%; box-shadow: 0 2px 12px rgba(0,0,0,.15); cursor: pointer; z-index: 4; }
+.linkki-sticker-layer--editing .linkki-sticker.is-selected .linkki-sticker-tool--rotate { top: -43px; font-size: 23px; line-height: 1; }
+.linkki-sticker-layer--editing .linkki-sticker.is-selected .linkki-sticker-tool--remove { bottom: -43px; color: #eb5264; }
+.linkki-sticker-tool svg { width: 17px; height: 17px; }
+.template-preview .linkki-sticker-layer { z-index: 4; }
+@media(max-width:600px) { .linkki-sticker-picker { grid-template-columns: repeat(3,minmax(0,1fr)); } }
