@@ -3662,6 +3662,285 @@ button.template-stat {
 .sidebar-share-button:hover { background: rgba(42, 60, 36, .07); }
 .sidebar-share-button:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
 
+/* Loading das páginas públicas — não interfere no editor ou nas animações existentes. */
+.linkki-public-loading-page { position: relative; isolation: isolate; }
+.linkki-public-loading {
+  position: fixed; inset: 0; z-index: 100; display: grid; place-items: center;
+  background: #F7F8F3; opacity: 1; transition: opacity 420ms ease;
+}
+.linkki-public-loading--leaving { opacity: 0; pointer-events: none; }
+.linkki-public-loading-video { display: block; width: clamp(110px, 22vw, 210px); height: auto; }
+.linkki-public-content--waiting .profile-inner > * { animation-play-state: paused !important; }
+@media (prefers-reduced-motion: reduce) {
+  .linkki-public-loading { transition-duration: 100ms; }
+}
+
+/* Identidade visual dos modelos publicados pela conta oficial. */
+.template-author .linkki-official-badge {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: auto; height: auto; min-height: 20px; padding: 3px 8px;
+  border-radius: 999px; background: #cad593; color: #2a3c24;
+  font-size: 9px; font-weight: 800; line-height: 1; white-space: nowrap;
+}
+
+/* Prévia da comunidade: imagem original do modelo, sem alterar a aplicação. */
+.community-template-card .template-preview { position: relative; overflow: hidden; isolation: isolate; }
+.community-template-card .template-mini-content { position: relative; z-index: 1; }
+.community-template-card .template-mini-cover { position: absolute; z-index: 0; left: 0; right: 0; top: 0; background-position: center top; background-size: cover; background-repeat: no-repeat; }
+.community-template-card .template-mini-cover--hero { height: 61%; }
+.community-template-card .template-preview--hero { padding-top: 155px; }
+.community-template-card .template-mini-cover--banner { height: 70px; }
+.community-template-card .template-mini-cover--banner + .template-mini-content { padding-top: 32px; }
+
+/* Enquadramento interativo da foto Hero no editor */
+.preview-screen .linkki-profile-cover--hero { pointer-events:auto; cursor:grab; touch-action:none; user-select:none; }
+.preview-screen .linkki-profile-cover--hero:active { cursor:grabbing; }
+.linkki-hero-adjust { margin-top:14px; padding:14px; border:1px solid var(--line); border-radius:12px; display:grid; gap:10px; }
+.linkki-hero-adjust p { margin:0; font-size:12px; color:var(--muted); }
+.linkki-hero-adjust label { font-size:12px; font-weight:700; }
+.linkki-hero-adjust input[type=range] { width:100%; accent-color:var(--sprout); }
+.linkki-hero-adjust button { justify-self:start; }
+
+/* Controles da foto Hero no mesmo padrão dos sliders de sombra */
+.linkki-hero-adjust .range-grid { margin: 2px 0; }
+.linkki-hero-adjust .range-control { width: 100%; }
+
+/* Galeria de fundos: nao interfere nos layouts de avatar ou nos sliders. */
+.linkki-background-gallery { width:100%; margin-top:16px; padding-top:14px; border-top:1px solid var(--line); }
+.linkki-background-gallery-title { font-size:12px; font-weight:750; margin-bottom:10px; color:var(--root); }
+.linkki-background-gallery-grid { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:9px; }
+.linkki-background-preset { display:flex; flex-direction:column; gap:5px; padding:5px; border:2px solid transparent; background:transparent; border-radius:12px; cursor:pointer; font-size:11px; text-align:center; }
+.linkki-background-preset img { width:100%; aspect-ratio:4/5; object-fit:cover; border-radius:8px; }
+.linkki-background-preset.is-selected { border-color:var(--sprout); }
+.linkki-background-upload-actions { display:flex; gap:8px; flex-wrap:wrap; margin-top:12px; }
+.linkki-background-gallery small { display:block; margin-top:8px; font-size:11px; color:var(--muted); }
+@media(max-width:520px){.linkki-background-gallery-grid{grid-template-columns:repeat(2,minmax(0,1fr));}}
+
+.linkki-background-row { flex-wrap:wrap; }
+.linkki-background-gallery { flex:0 0 100%; }
+
+/* Foto Hero: slider cinza com bolinha verde, como os ajustes de sombra. */
+.linkki-hero-size-control { margin-top: 16px; max-width: 350px; }
+.linkki-hero-size-control .range-control input[type="range"] {
+  display: block; width: 100%; height: 7px; padding: 0; border: 0;
+  border-radius: 999px; background: #d5d7d3; appearance: none;
+  -webkit-appearance: none; outline: none; cursor: pointer;
+}
+.linkki-hero-size-control input[type="range"]::-webkit-slider-thumb {
+  appearance: none; -webkit-appearance: none; width: 21px; height: 21px;
+  border: 0; border-radius: 50%; background: #a1c349; cursor: grab;
+}
+.linkki-hero-size-control input[type="range"]::-moz-range-thumb {
+  width: 21px; height: 21px; border: 0; border-radius: 50%;
+  background: #a1c349; cursor: grab;
+}
+
+/* Imagem de fundo: seção independente de Cores */
+.linkki-background-image-card .linkki-background-gallery { margin-top:14px; padding-top:14px; }
+.linkki-background-image-toggle { display:inline-flex; align-items:center; gap:9px; font-size:13px; font-weight:650; color:var(--root); cursor:pointer; }
+.linkki-background-image-toggle input { accent-color:#a1c349; width:17px; height:17px; }
+
+/* Sombra: apenas estética dos quatro sliders, igual ao controle Hero. */
+.linkki-shadow-block .range-control input[type="range"] {
+  display: block;
+  width: 100%;
+  height: 7px;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: #d5d7d3;
+  appearance: none;
+  -webkit-appearance: none;
+  outline: none;
+  cursor: pointer;
+}
+.linkki-shadow-block .range-control input[type="range"]::-webkit-slider-thumb {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 21px;
+  height: 21px;
+  border: 0;
+  border-radius: 50%;
+  background: #a1c349;
+  cursor: grab;
+}
+.linkki-shadow-block .range-control input[type="range"]::-moz-range-thumb {
+  width: 21px;
+  height: 21px;
+  border: 0;
+  border-radius: 50%;
+  background: #a1c349;
+  cursor: grab;
+}
+
+/* Ações de gerenciamento em Minhas páginas */
+.linkki-page-header-actions{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.linkki-page-trash{border:0;background:transparent;color:#d34a4a;cursor:pointer;font-size:25px;padding:7px 12px;border-radius:12px}
+.linkki-page-trash:hover{background:#fce8e8}
+.linkki-delete-pill{border:0;border-radius:999px;background:#d83b3b;color:#fff;font-weight:750;padding:13px 19px;cursor:pointer}
+.linkki-delete-pill:disabled{opacity:.45;cursor:default}
+.linkki-select-all{border:0;background:transparent;color:var(--root);font-weight:750;cursor:pointer;padding:12px}
+.managed-page-card{position:relative;overflow:visible}
+.managed-page-card .template-preview{border-radius:20px 20px 0 0;overflow:hidden}
+.linkki-page-menu-wrap{position:absolute;top:12px;right:12px;z-index:12}
+.linkki-page-dots{width:36px;height:36px;border:0;border-radius:50%;background:rgba(255,255,255,.95);color:#273b25;font-size:25px;line-height:1;cursor:pointer;box-shadow:0 2px 9px #0002}
+.linkki-page-popover{position:absolute;top:42px;right:0;min-width:200px;padding:7px;background:#fff;border:1px solid #e1e4dc;border-radius:14px;box-shadow:0 12px 32px #0002;display:grid;gap:2px}
+.linkki-page-popover[hidden]{display:none}
+.linkki-page-popover button{border:0;background:transparent;padding:11px 12px;text-align:left;border-radius:9px;cursor:pointer;font-weight:600;color:#283b25}
+.linkki-page-popover button:hover{background:#f0f3e9}
+.linkki-page-popover button.danger{color:#c53232}
+.linkki-page-selection{position:absolute;top:14px;right:14px;z-index:12;cursor:pointer}
+.linkki-page-selection input{position:absolute;opacity:0;width:32px;height:32px;cursor:pointer}
+.linkki-page-selection span{display:block;width:28px;height:28px;border-radius:50%;background:#fff;border:2px solid #a8b2a3;box-shadow:0 2px 8px #0002}
+.linkki-page-selection input:checked+span{background:#9fc544;border-color:#9fc544}
+.linkki-page-selection input:checked+span:after{content:'✓';display:grid;place-items:center;color:#fff;font-weight:900}
+.linkki-page-selection input:focus-visible+span{outline:3px solid #9fc544;outline-offset:3px}
+
+
+/* Refinamento visual do gerenciamento de páginas: nenhuma regra funcional alterada. */
+.linkki-page-header-actions { gap: 8px; }
+.linkki-page-trash { display:inline-flex; align-items:center; justify-content:center; min-width:30px; min-height:30px; padding:4px 6px; font-size:14px; font-weight:600; }
+.linkki-page-trash svg {display:block;flex:none;}
+.linkki-select-all {font-size:12px; font-weight:700; padding:6px 8px;}
+.linkki-delete-pill {font-size:12px; padding:9px 14px; line-height:1.2; font-weight:700;}
+.linkki-page-selection {top:11px; right:11px;}
+.linkki-page-selection input {width:24px;height:24px;}
+.linkki-page-selection span {width:23px;height:23px;border-width:1.5px;}
+.linkki-page-selection input:checked + span:after {font-size:12px;line-height:20px;}
+.linkki-page-dots {width:30px;height:30px;font-size:21px;}
+.linkki-page-menu-wrap {top:10px;right:10px;}
+.linkki-page-popover {top:36px;min-width:174px;padding:5px;border-radius:12px;gap:0;transform-origin:top right;animation:linkkiPagePopoverIn 180ms cubic-bezier(.2,.8,.2,1) both;}
+.linkki-page-popover button {font-size:12px;padding:9px 10px;border-radius:8px;}
+@keyframes linkkiPagePopoverIn {from{opacity:0;transform:translateY(-5px) scale(.96)}to{opacity:1;transform:translateY(0) scale(1)}}
+@media (prefers-reduced-motion:reduce){.linkki-page-popover{animation:none}}
+@media (max-width:540px){.linkki-page-header-actions{gap:5px}.linkki-select-all{font-size:11px}.linkki-delete-pill{font-size:11px;padding:8px 11px}}
+
+/* Abas da comunidade: o verde é uma camada VISÍVEL atrás dos textos. */
+.editor-panel--community .community-nav {
+  position: relative;
+  isolation: isolate;
+}
+.editor-panel--community .community-nav-indicator {
+  position: absolute;
+  top: 5px;
+  left: 5px;
+  height: calc(100% - 10px);
+  width: 0;
+  border-radius: 999px;
+  background: var(--leaf);
+  z-index: 0;
+  pointer-events: none;
+  transition: left 420ms cubic-bezier(.22, 1, .36, 1), width 420ms cubic-bezier(.22, 1, .36, 1);
+}
+.editor-panel--community .community-nav-button {
+  position: relative;
+  z-index: 1;
+  background: transparent;
+  transition: color 200ms ease;
+}
+.editor-panel--community .community-nav-button.is-active { background: transparent; }
+/* Ao trocar de aba, os itens recebem animação via JS sem remontar o topo. */
+.editor-panel--community .community-dynamic-results .community-section-title,
+.editor-panel--community .community-dynamic-results .community-grid > *,
+.editor-panel--community .community-dynamic-results .community-empty {
+  animation: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .editor-panel--community .community-nav-indicator { transition: none !important; }
+}
+
+
+/* Modal centralizado de renomear/excluir páginas */
+.linkki-page-dialog-backdrop {
+  position: fixed; inset: 0; z-index: 10050;
+  background: rgba(18, 28, 17, .32);
+  -webkit-backdrop-filter: blur(5px); backdrop-filter: blur(5px);
+  display: grid; place-items: center; padding: 20px;
+  opacity: 0; transition: opacity 180ms ease;
+}
+.linkki-page-dialog-backdrop.is-visible { opacity: 1; }
+.linkki-page-dialog {
+  width: min(100%, 420px); padding: 26px;
+  border: 1px solid rgba(42, 60, 36, .09);
+  border-radius: 22px; background: #fff;
+  box-shadow: 0 24px 80px rgba(14, 29, 14, .20);
+  transform: translateY(10px) scale(.98);
+  transition: transform 180ms ease;
+}
+.linkki-page-dialog-backdrop.is-visible .linkki-page-dialog { transform: none; }
+.linkki-page-dialog h2 { margin: 0 0 12px; color: #2a3c24; font-size: 21px; line-height: 1.2; }
+.linkki-page-dialog-description { margin: 0 0 22px; color: #667263; font-size: 13px; line-height: 1.55; }
+.linkki-page-dialog-label { display: grid; gap: 9px; margin: 18px 0 23px; font-size: 12px; color: #2a3c24; font-weight: 700; }
+.linkki-page-dialog-input { width: 100%; min-height: 44px; padding: 0 13px; border: 1px solid #d9ded5; border-radius: 11px; background: #f7f8f3; color: #2a3c24; font: inherit; font-size: 14px; }
+.linkki-page-dialog-input:focus { outline: 2px solid #a1c349; outline-offset: 2px; }
+.linkki-page-dialog-actions { display: flex; justify-content: flex-end; gap: 9px; }
+.linkki-page-dialog-actions button { border: 0; border-radius: 999px; padding: 11px 18px; min-width: 104px; cursor: pointer; font: inherit; font-size: 13px; font-weight: 750; }
+.linkki-page-dialog-cancel { background: #f1f3ec; color: #2a3c24; }
+.linkki-page-dialog-accept { background: #a1c349; color: #2a3c24; }
+.linkki-page-dialog-accept.is-danger { background: #d54545; color: white; }
+@media (max-width: 420px) {
+  .linkki-page-dialog { padding: 20px; }
+  .linkki-page-dialog-actions button { min-width: 0; flex: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .linkki-page-dialog-backdrop, .linkki-page-dialog { transition: none; }
+}
+
+/* A miniatura do modelo e a miniatura de Minhas páginas compartilham
+   exatamente a mesma estrutura, máscara Hero e dimensões de enquadramento. */
+.managed-page-card .template-preview,
+.user-page-card .template-preview,
+.community-template-card .template-preview {
+  min-height: 300px;
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+}
+.template-preview .template-mini-content { position: relative; z-index: 1; }
+.template-preview .template-mini-cover {
+  position: absolute; z-index: 0; top: 0; left: 0; right: 0;
+  background-position: center top; background-size: cover; background-repeat: no-repeat;
+}
+.template-preview .template-mini-cover--hero {
+  height: 62%;
+  -webkit-mask-image: linear-gradient(to bottom, #000 48%, transparent 100%);
+  mask-image: linear-gradient(to bottom, #000 48%, transparent 100%);
+}
+.template-preview.template-preview--hero { padding-top: 155px; }
+.template-preview .template-mini-cover--banner { height: 70px; }
+.template-preview .template-mini-cover--banner + .template-mini-content { padding-top: 32px; }
+
+/* Adesivos: galeria discreta e controles de transformação no preview */
+.linkki-sticker-counter { font-size: 11px; color: var(--muted); font-weight: 600; }
+.linkki-stickers-card .linkki-setting-description { margin-bottom: 15px; line-height: 1.55; }
+.linkki-sticker-collections { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 13px; }
+.linkki-sticker-tab { border: 1px solid var(--line); padding: 8px 14px; border-radius: 999px; background: #fff; color: var(--root); font: inherit; font-size: 12px; font-weight: 750; cursor: pointer; }
+.linkki-sticker-tab.is-active { background: var(--leaf); border-color: var(--leaf); }
+.linkki-sticker-picker { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 10px; }
+.linkki-sticker-picker button { min-width: 0; min-height: 107px; border: 1px solid var(--line); border-radius: 14px; background: var(--paper); display: grid; justify-items: center; align-content: center; gap: 5px; padding: 10px; color: var(--root); cursor: pointer; transition: border-color .18s,transform .18s; }
+.linkki-sticker-picker button:hover { border-color: var(--sprout); transform: translateY(-2px); }
+.linkki-sticker-picker img { display: block; width: 64px; height: 64px; object-fit: contain; }
+.linkki-sticker-picker span { font-size: 10px; text-align: center; }
+.profile-canvas, .template-preview { position: relative; }
+.linkki-sticker-layer { position: absolute; inset: 0; z-index: 8; pointer-events: none; }
+.linkki-sticker { position: absolute; aspect-ratio: 1; pointer-events: none; transform-origin: center center; user-select: none; -webkit-user-select: none; }
+.linkki-sticker img { display: block; width: 100%; height: 100%; object-fit: contain; pointer-events: none; user-select: none; -webkit-user-drag: none; }
+.linkki-sticker-layer--editing .linkki-sticker { pointer-events: auto; cursor: grab; touch-action: none; }
+.linkki-sticker-layer--editing .linkki-sticker:active { cursor: grabbing; }
+.linkki-sticker-selection, .linkki-sticker-handle, .linkki-sticker-tool { display: none; }
+.linkki-sticker-layer--editing .linkki-sticker.is-selected .linkki-sticker-selection { display: block; position: absolute; inset: -2px; border: 2px solid #D82AF2; pointer-events: none; }
+.linkki-sticker-layer--editing .linkki-sticker.is-selected .linkki-sticker-handle { display: block; position: absolute; width: 11px; height: 11px; background: #fff; border: 2px solid #C823ED; border-radius: 2px; cursor: nwse-resize; z-index: 3; }
+.linkki-sticker-handle--tl { left: -7px; top: -7px; }
+.linkki-sticker-handle--tr { right: -7px; top: -7px; }
+.linkki-sticker-handle--bl { left: -7px; bottom: -7px; }
+.linkki-sticker-handle--br { right: -7px; bottom: -7px; }
+.linkki-sticker-layer--editing .linkki-sticker.is-selected .linkki-sticker-tool { display: grid; place-items: center; position: absolute; left: 50%; translate: -50% 0; width: 31px; height: 31px; background: #fff; color: #453947; border: 0; border-radius: 50%; box-shadow: 0 2px 12px rgba(0,0,0,.15); cursor: pointer; z-index: 4; }
+.linkki-sticker-layer--editing .linkki-sticker.is-selected .linkki-sticker-tool--rotate { top: -43px; font-size: 23px; line-height: 1; }
+.linkki-sticker-layer--editing .linkki-sticker.is-selected .linkki-sticker-tool--remove { bottom: -43px; color: #eb5264; }
+.linkki-sticker-tool svg { width: 17px; height: 17px; }
+.template-preview .linkki-sticker-layer { z-index: 4; }
+@media(max-width:600px) { .linkki-sticker-picker { grid-template-columns: repeat(3,minmax(0,1fr)); } }
+
 /* Galeria de adesivos: miniaturas sem legendas visíveis. */
 .linkki-sticker-picker button { min-height: 96px; gap: 0; }
 .linkki-sticker-picker button img { width: 76px; height: 76px; max-width: 100%; }
