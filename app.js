@@ -1459,11 +1459,14 @@ function templatePreviewMarkup(item) {
   ].join(";");
   const shape = appearance.buttonStyle || "rounded";
   const preview = appearance.previewSnapshot || {};
-  const previewLayout = preview.avatarLayout || 'classic';
-  const heroPhoto = previewLayout === 'hero' ? safeImageSrc(preview.avatar) : '';
+  // A mesma prévia é utilizada em Minhas páginas e na Comunidade.
+  // O layout do autor e a imagem publicada têm precedência sobre o fallback.
+  const previewLayout = preview.avatarLayout || item.avatarLayout || appearance.avatarLayout || 'classic';
+  const previewPhoto = safeImageSrc(preview.avatar || item.profileAvatar || '');
+  const heroPhoto = previewLayout === 'hero' ? previewPhoto : '';
   const heroPreviewStyle = `background-position:${Math.max(0,Math.min(100,Number(preview.heroPhotoX ?? appearance.heroPhotoX ?? 50)))}% ${Math.max(0,Math.min(100,Number(preview.heroPhotoY ?? appearance.heroPhotoY ?? 50)))}%;background-size:${Math.max(100,Math.min(250,Number(preview.heroPhotoZoom ?? appearance.heroPhotoZoom ?? 100)))}% auto`;
-  const bannerPhoto = previewLayout === 'banner' ? safeImageSrc(preview.bannerImage) : '';
-  const avatar = typeof (item.profileAvatar || preview.avatar) === "string" && /^(data:image\/(png|jpeg|jpg|webp|gif);base64,|https:\/\/)/i.test(item.profileAvatar || preview.avatar) ? (item.profileAvatar || preview.avatar) : "";
+  const bannerPhoto = previewLayout === 'banner' ? safeImageSrc(preview.bannerImage || item.bannerImage || '') : '';
+  const avatar = previewPhoto;
   const miniLinks = Array.isArray(item.previewLinks || preview.links)
     ? (item.previewLinks || preview.links).filter(link => link && typeof link.title === "string").slice(0, 5).map(link => `<span>${escapeHtml(link.title)}</span>`).join("")
     : "<span>Meu destaque</span><span>Conteúdo novo</span><span>Fale comigo</span>";
@@ -1509,6 +1512,77 @@ async function linkkiTemplatePreviewImage(value) {
   });
 }
 
+// O mesmo retrato/layout é gravado no metadado público e usado no cartão local.
+function linkkiLocalPagePreview(page) {
+  const current = page.id === state.currentPageId;
+  const p = current ? state.profile : {};
+  const a = page.appearance || {};
+  return {
+    avatar: (current ? p.avatar : '') || page.profileAvatar || '',
+    bannerImage: (current ? p.bannerImage : '') || page.bannerImage || '',
+    avatarLayout: (current ? p.avatarLayout : '') || page.avatarLayout || 'classic',
+    heroPhotoZoom: a.heroPhotoZoom ?? p.heroPhotoZoom ?? 100,
+    heroPhotoX: a.heroPhotoX ?? p.heroPhotoX ?? 50,
+    heroPhotoY: a.heroPhotoY ?? p.heroPhotoY ?? 50,
+    name: page.profileName || p.name || page.title || '',
+    username: page.username || state.account.username || '',
+    links: (Array.isArray(page.previewLinks) ? page.previewLinks : state.links.filter(l => l.visible))
+      .slice(0, 5).map(link => ({title: String(link.title || '')}))
+  };
+}
+
+async function linkkiCompactPagePreview(page) {
+  const preview = linkkiLocalPagePreview(page);
+  const [avatar, banner] = await Promise.all([
+    linkkiTemplatePreviewImage(preview.avatar),
+    linkkiTemplatePreviewImage(preview.bannerImage)
+  ]);
+  return { ...preview, avatar, bannerImage: banner };
+}
+
+// Identidade do modelo publicada separadamente, pois a função RPC antiga
+// pode descartar campos de imagem e não atualiza títulos após renomear página.
+const LINKKI_TEMPLATE_PREVIEW_TABLE = 'linkki_community_preview_metadata';
+async function linkkiSaveTemplateMetadata(templateId, page, preview) {
+  if (!authClient || !cloudReady || !cloudUserId || !templateId) return false;
+  const snapshot = preview || await linkkiCompactPagePreview(page);
+  const { error } = await authClient.from(LINKKI_TEMPLATE_PREVIEW_TABLE).upsert({
+    template_id: String(templateId), owner_id: cloudUserId,
+    source_page_id: String(page.id), title: String(page.title).slice(0, 80),
+    snapshot
+  }, { onConflict: 'template_id,owner_id' });
+  if (error) {
+    console.warn('Linkki: metadados do modelo não sincronizados. Execute o SQL incluso no ZIP.', error);
+    return false;
+  }
+  const template = state.communityTemplates.find(item => String(item.id) === String(templateId) && item.ownerId === 'self');
+  if (template) {
+    template.title = page.title;
+    template.appearance = { ...template.appearance, previewSnapshot: snapshot };
+    template.profileAvatar = snapshot.avatar;
+    template.previewName = snapshot.name;
+    template.username = snapshot.username;
+    template.previewLinks = snapshot.links;
+  }
+  return true;
+}
+
+async function linkkiUpdatePublishedModelForPage(page) {
+  if (!authClient || !cloudReady || !cloudUserId) return true;
+  let mine = state.communityTemplates.filter(t => t.ownerId === 'self' && t.sourcePageId === page.id && t.published);
+  if (!mine.length) {
+    // Não depende do usuário ter visitado a Comunidade antes de renomear.
+    const { data, error } = await authClient.rpc('linkki_community_list');
+    if (error) { console.warn('Linkki: não foi possível consultar modelos publicados', error); return false; }
+    mine = (Array.isArray(data) ? data : []).filter(t => t.owner_id === cloudUserId && t.source_page_id === page.id)
+      .map(t => ({id:t.id}));
+  }
+  if (!mine.length) return true;
+  const preview = await linkkiCompactPagePreview(page);
+  const results = await Promise.all(mine.map(t => linkkiSaveTemplateMetadata(t.id, page, preview)));
+  return results.every(Boolean);
+}
+
 function communityNav() {
   return `
     <div class="community-nav" role="tablist" aria-label="Seções da comunidade" data-community-current="${state.communityView}">
@@ -1552,19 +1626,59 @@ async function loadCommunityTemplates() {
   const { data, error } = await authClient.rpc('linkki_community_list');
   if (owner !== cloudUserId || request !== communityRequest) return;
   if (error) { console.error('Comunidade:', error); showToast('Não foi possível carregar os modelos.'); return; }
-  state.communityTemplates = (Array.isArray(data) ? data : []).map(item => ({
-    id: item.id, ownerId: item.owner_id === owner ? 'self' : item.owner_id,
-    sourcePageId: item.source_page_id, official: item.owner_id === LINKKI_OFFICIAL_USER_ID,
-    author: item.owner_id === LINKKI_OFFICIAL_USER_ID ? "Linkki" : item.author,
-    initials: item.owner_id === LINKKI_OFFICIAL_USER_ID ? "LK" : initials(item.author || ''),
-    title: item.title, category: item.category, likes: Number(item.likes) || 0,
-    uses: Number(item.uses) || 0, liked: item.liked === true, published: true,
-    appearance: item.appearance,
-    profileAvatar: item.appearance?.previewSnapshot?.avatar || '',
-    previewName: item.appearance?.previewSnapshot?.name || '',
-    username: item.appearance?.previewSnapshot?.username || '',
-    previewLinks: item.appearance?.previewSnapshot?.links || null
-  }));
+  const raw = Array.isArray(data) ? data : [];
+  const previewMeta = new Map();
+  let metadataTableReady = true;
+  if (raw.length) {
+    const { data: rows, error: metaError } = await authClient.from(LINKKI_TEMPLATE_PREVIEW_TABLE)
+      .select('template_id,owner_id,title,snapshot').in('template_id', raw.map(t => String(t.id)));
+    if (owner !== cloudUserId || request !== communityRequest) return;
+    if (!metaError && Array.isArray(rows)) {
+      for (const row of rows) previewMeta.set(`${row.template_id}:${row.owner_id}`, row);
+    } else if (metaError) {
+      // A comunidade continua carregando caso o SQL ainda não tenha sido instalado.
+      metadataTableReady = false;
+      console.warn('Linkki: metadados visuais da comunidade indisponíveis.', metaError.message);
+    }
+  }
+  const missingOwnerPreview = [];
+  state.communityTemplates = raw.map(item => {
+    const saved = previewMeta.get(`${item.id}:${item.owner_id}`);
+    const localPage = item.owner_id === owner
+      ? state.userPages.find(page => page.id === item.source_page_id) : null;
+    const localPreview = localPage ? linkkiLocalPagePreview(localPage) : null;
+    const embedded = item.appearance?.previewSnapshot || null;
+    const preview = saved?.snapshot || localPreview || embedded || {};
+    // O autor sempre enxerga o enquadramento salvo da própria página antiga;
+    // outros usuários veem somente o que foi efetivamente publicado no banco.
+    const usablePreview = (safeImageSrc(preview.avatar) || safeImageSrc(preview.bannerImage))
+      ? preview : (localPreview && (safeImageSrc(localPreview.avatar) || safeImageSrc(localPreview.bannerImage)) ? localPreview : (embedded || preview));
+    if (localPage && !saved) missingOwnerPreview.push({id: item.id, page: localPage});
+    return {
+      id: item.id, ownerId: item.owner_id === owner ? 'self' : item.owner_id,
+      sourcePageId: item.source_page_id, official: item.owner_id === LINKKI_OFFICIAL_USER_ID,
+      author: item.owner_id === LINKKI_OFFICIAL_USER_ID ? 'Linkki' : item.author,
+      initials: item.owner_id === LINKKI_OFFICIAL_USER_ID ? 'LK' : initials(item.author || ''),
+      title: saved?.title || (localPage?.title && !saved ? localPage.title : item.title),
+      category: item.category, likes: Number(item.likes) || 0,
+      uses: Number(item.uses) || 0, liked: item.liked === true, published: true,
+      appearance: { ...(item.appearance || {}), previewSnapshot: usablePreview },
+      profileAvatar: usablePreview.avatar || '',
+      previewName: usablePreview.name || '',
+      username: usablePreview.username || '',
+      previewLinks: usablePreview.links || null
+    };
+  });
+  // Ao atualizar a conta, preenche também os modelos antigos sem metadados.
+  // Falhas na tabela não impedem a navegação nem alteram a RPC existente.
+  if (missingOwnerPreview.length && metadataTableReady) {
+    void (async () => {
+      for (const record of missingOwnerPreview) {
+        if (owner !== cloudUserId) return;
+        await linkkiSaveTemplateMetadata(record.id, record.page);
+      }
+    })();
+  }
   if (location.hash.replace(/^#\/?/, '') === 'editor' && state.activeSection === 'community') {
     if (document.querySelector('#linkki-community-results')) linkkiRefreshCommunityResults();
     else render();
@@ -1723,7 +1837,15 @@ function linkkiBindCommunityResults(results) {
   });
   results.querySelectorAll('[data-action="unpublish-template"]').forEach(button => {
     button.addEventListener('click', async () => {
-      await communityAction('linkki_community_remove', { p_template_id: button.dataset.templateId }, 'Publicação removida. Sua página continua salva.');
+      const templateId = button.dataset.templateId;
+      await communityAction('linkki_community_remove', { p_template_id: templateId }, 'Publicação removida. Sua página continua salva.');
+      // A foto da prévia também é apagada da tabela auxiliar quando o modelo
+      // deixa de existir publicamente. Não afeta a foto da página original.
+      if (!state.communityTemplates.some(t => String(t.id) === templateId && t.ownerId === 'self' && t.published) && cloudUserId) {
+        const { error } = await authClient.from(LINKKI_TEMPLATE_PREVIEW_TABLE)
+          .delete().eq('template_id', templateId).eq('owner_id', cloudUserId);
+        if (error) console.warn('Linkki: limpeza da prévia não concluída', error);
+      }
     });
   });
 }
@@ -2727,7 +2849,19 @@ function linkkiPageModal({ title, message = '', value, danger = false, confirmLa
       const title = await linkkiPageModal({ title: 'Renomear página', value: page.title, confirmLabel: 'Confirmar' });
       if (title === null) return;
       if (!title.trim()) { showToast('Digite um nome para a página.'); return; }
-      page.title = title.trim().slice(0, 80);
+      const nextTitle = title.trim().slice(0, 80);
+      if (page.title === nextTitle) { render(); return; }
+      page.title = nextTitle;
+      // O nome do perfil é independente do título da página (ex.: "Linkki").
+      saveState(); render();
+      const synced = await linkkiUpdatePublishedModelForPage(page);
+      if (!synced) showToast('Nome salvo na página. Para atualizar o modelo em todos os dispositivos, instale o SQL do ZIP no Supabase.');
+      else {
+        const visible = document.querySelector('#linkki-community-results');
+        if (visible) linkkiRefreshCommunityResults();
+        showToast('Nome atualizado na página e no modelo publicado.');
+      }
+      return;
     }
     if (option === 'duplicate') {
       syncCurrentPageSnapshot();
@@ -2772,6 +2906,12 @@ function linkkiPageModal({ title, message = '', value, danger = false, confirmLa
       state.profile.name = page.profileName || page.title;
       state.profile.username = page.username;
       state.profile.published = page.active;
+      state.profile.avatar = page.profileAvatar ?? state.profile.avatar;
+      state.profile.avatarLayout = page.avatarLayout || appearance.previewSnapshot?.avatarLayout || 'classic';
+      state.profile.bannerImage = page.bannerImage || '';
+      state.profile.heroPhotoZoom = appearance.heroPhotoZoom ?? 100;
+      state.profile.heroPhotoX = appearance.heroPhotoX ?? 50;
+      state.profile.heroPhotoY = appearance.heroPhotoY ?? 50;
       state.profile.customColors = appearance.customColors;
       state.profile.backgroundMode = appearance.backgroundMode || "solid";
       state.profile.gradientSecondColor = appearance.gradientSecondColor || "#F2F5DF";
@@ -2805,6 +2945,9 @@ function linkkiPageModal({ title, message = '', value, danger = false, confirmLa
         if (page.appearance) {
           const appearance = JSON.parse(JSON.stringify(page.appearance));
           Object.assign(state.profile, appearance);
+          state.profile.avatar = page.profileAvatar ?? state.profile.avatar;
+          state.profile.avatarLayout = page.avatarLayout || appearance.previewSnapshot?.avatarLayout || 'classic';
+          state.profile.bannerImage = page.bannerImage || '';
         }
         state.profile.published = false;
         saveState();
@@ -2868,15 +3011,9 @@ function linkkiPageModal({ title, message = '', value, danger = false, confirmLa
       const previewBanner = await linkkiTemplatePreviewImage(page.bannerImage || state.profile.bannerImage || '');
       const previewAppearance = page.appearance ? { ...state.profile, ...page.appearance } : state.profile;
       const previewSnapshot = {
+        ...linkkiLocalPagePreview(page),
         avatar: previewAvatar,
-        bannerImage: previewBanner,
-        avatarLayout: page.avatarLayout || state.profile.avatarLayout || 'classic',
-        heroPhotoZoom: previewAppearance.heroPhotoZoom ?? 100,
-        heroPhotoX: previewAppearance.heroPhotoX ?? 50,
-        heroPhotoY: previewAppearance.heroPhotoY ?? 50,
-        name: page.profileName || state.profile.name || '',
-        username: page.username || state.account.username || state.profile.username || '',
-        links: (page.previewLinks || state.links.filter(link => link.visible)).slice(0, 5).map(link => ({title: link.title}))
+        bannerImage: previewBanner
       };
       const result = await communityAction('linkki_community_publish', {
         p_source_page_id: page.id, p_title: page.title, p_author: author,
@@ -2886,18 +3023,13 @@ function linkkiPageModal({ title, message = '', value, danger = false, confirmLa
         }
       });
       if (result) {
-        // Lê novamente o registro real devolvido pelo Supabase, sem assumir
-        // que a função SQL tenha conservado os campos de imagem.
         const saved = state.communityTemplates.find(t =>
           t.ownerId === 'self' && t.sourcePageId === page.id && t.published);
-        const serverPreview = saved?.appearance?.previewSnapshot;
-        if ((previewAvatar || previewBanner) &&
-            (!serverPreview || (previewAvatar && !safeImageSrc(serverPreview.avatar)) ||
-             (previewBanner && !safeImageSrc(serverPreview.bannerImage)))) {
-          console.warn('Linkki: a função SQL da comunidade não devolveu a foto da prévia.', {saved});
-          showToast('Modelo publicado, mas o Supabase não guardou a foto da prévia. É necessário corrigir a função de publicação no banco.');
+        const synced = saved ? await linkkiSaveTemplateMetadata(saved.id, page, previewSnapshot) : false;
+        if (!synced) {
+          showToast('Modelo publicado, mas falta instalar o SQL incluso no ZIP para guardar a foto Hero na comunidade.');
         } else {
-          showToast('Modelo publicado na comunidade.');
+          showToast('Modelo publicado com foto, layout e título preservados.');
         }
         state.communityView = 'mine'; render();
       }

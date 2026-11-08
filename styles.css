@@ -3885,3 +3885,27 @@ button.template-stat {
 @media (prefers-reduced-motion: reduce) {
   .linkki-page-dialog-backdrop, .linkki-page-dialog { transition: none; }
 }
+
+/* A miniatura do modelo e a miniatura de Minhas páginas compartilham
+   exatamente a mesma estrutura, máscara Hero e dimensões de enquadramento. */
+.managed-page-card .template-preview,
+.user-page-card .template-preview,
+.community-template-card .template-preview {
+  min-height: 300px;
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+}
+.template-preview .template-mini-content { position: relative; z-index: 1; }
+.template-preview .template-mini-cover {
+  position: absolute; z-index: 0; top: 0; left: 0; right: 0;
+  background-position: center top; background-size: cover; background-repeat: no-repeat;
+}
+.template-preview .template-mini-cover--hero {
+  height: 62%;
+  -webkit-mask-image: linear-gradient(to bottom, #000 48%, transparent 100%);
+  mask-image: linear-gradient(to bottom, #000 48%, transparent 100%);
+}
+.template-preview.template-preview--hero { padding-top: 155px; }
+.template-preview .template-mini-cover--banner { height: 70px; }
+.template-preview .template-mini-cover--banner + .template-mini-content { padding-top: 32px; }
