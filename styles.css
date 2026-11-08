@@ -4002,3 +4002,11 @@ button.template-stat {
     margin-bottom: -42px;
   }
 }
+
+/* Desktop: arredondamento somente da moldura da página pública. */
+@media (min-width: 768px) {
+  .public-page > .profile-canvas {
+    border-radius: 24px;
+    overflow: hidden;
+  }
+}
