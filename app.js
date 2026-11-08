@@ -233,7 +233,7 @@ function linkkiStickerCollectionMarkup() {
     ${linkkiStickerCollections.map(c => `<button type="button" class="linkki-sticker-tab ${c.id === group?.id ? 'is-active' : ''}" data-sticker-collection="${escapeHtml(c.id)}" aria-pressed="${c.id === group?.id}">${escapeHtml(c.nome)}</button>`).join('')}
   </div>
   <div class="linkki-sticker-picker" aria-label="Escolher adesivo">
-    ${(group?.adesivos || []).map(s => `<button type="button" data-sticker-add="${escapeHtml(s.arquivo)}" title="Adicionar ${escapeHtml(s.nome)}" aria-label="Adicionar ${escapeHtml(s.nome)}"><img loading="lazy" draggable="false" src="${escapeHtml(s.arquivo)}" alt="" /><span>${escapeHtml(s.nome)}</span></button>`).join('')}
+    ${(group?.adesivos || []).map(s => `<button type="button" data-sticker-add="${escapeHtml(s.arquivo)}" title="Adicionar ${escapeHtml(s.nome)}" aria-label="Adicionar ${escapeHtml(s.nome)}"><img loading="lazy" draggable="false" src="${escapeHtml(s.arquivo)}" alt="" /></button>`).join('')}
   </div>`;
 }
 async function linkkiLoadStickerCatalog() {
@@ -1520,7 +1520,6 @@ function appearancePanel() {
 
     <section class="card linkki-stickers-card">
       <div class="card-title"><h2>Adesivos</h2><span class="linkki-sticker-counter">${linkkiNormalizeStickers(state.profile.stickers).length} na página</span></div>
-      <p class="linkki-setting-description">Clique em um adesivo para adicionar. Na prévia, arraste para mover, use as alças para aumentar e o botão de girar para rotacionar. Clique fora para esconder os controles.</p>
       <div data-sticker-gallery>${linkkiStickerCollectionMarkup()}</div>
     </section>
 
@@ -1539,7 +1538,7 @@ function appearancePanel() {
       <div class="card-title"><h2>Animação dos elementos</h2></div>
       <p class="linkki-setting-description">Escolha como os elementos entram quando alguém abre sua página.</p>
       <div class="linkki-setting-options linkki-animation-options">
-        ${[["none","Sem animação"],["fade-top","Fade-in de cima"],["bounce","Pop-up Bounce"],["fade-bottom","Fade-in de baixo"]].map(([value,label]) => `<button type="button" class="choice ${((state.profile.elementAnimation || "none") === value) ? "is-active" : ""}" data-element-animation="${value}">${label}</button>`).join("")}
+        ${[["none","Sem animação"],["fade-top","Fade-in de cima"],["bounce","Pop-up Bounce"],["fade-bottom","Fade-in de baixo"]].map(([value,label]) => `<button type="button" class="choice ${((state.profile.elementAnimation || "none") === value) ? "is-active" : ""}" data-element-animation="${value}"><span class="linkki-animation-label">${label}</span></button>`).join("")}
       </div>
     </section>
 
