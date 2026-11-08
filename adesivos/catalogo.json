@@ -2,106 +2,179 @@
   "versao": 1,
   "colecoes": [
     {
-      "id": "pop",
-      "nome": "Pop & divertido",
+      "id": "paper",
+      "nome": "Paper",
       "adesivos": [
         {
-          "id": "coracao",
-          "nome": "Coração pop",
-          "arquivo": "./adesivos/pop/coracao.svg"
+          "id": "paper-01",
+          "nome": "Paper",
+          "arquivo": "./adesivos/paper/!.svg"
         },
         {
-          "id": "estrela",
-          "nome": "Estrela",
-          "arquivo": "./adesivos/pop/estrela.svg"
+          "id": "paper-02",
+          "nome": "Paper 2",
+          "arquivo": "./adesivos/paper/!2.svg"
         },
         {
-          "id": "raio",
-          "nome": "Raio",
-          "arquivo": "./adesivos/pop/raio.svg"
+          "id": "paper-03",
+          "nome": "Paper 3",
+          "arquivo": "./adesivos/paper/!3.svg"
         },
         {
-          "id": "smile",
-          "nome": "Smiley",
-          "arquivo": "./adesivos/pop/smile.svg"
+          "id": "paper-04",
+          "nome": "Paper 4",
+          "arquivo": "./adesivos/paper/!4.svg"
+        },
+        {
+          "id": "paper-05",
+          "nome": "Paper 5",
+          "arquivo": "./adesivos/paper/!5.svg"
+        },
+        {
+          "id": "paper-06",
+          "nome": "Paper 6",
+          "arquivo": "./adesivos/paper/!6.svg"
+        },
+        {
+          "id": "paper-07",
+          "nome": "Paper 7",
+          "arquivo": "./adesivos/paper/!7.svg"
+        },
+        {
+          "id": "paper-08",
+          "nome": "Paper 8",
+          "arquivo": "./adesivos/paper/!8.svg"
+        },
+        {
+          "id": "paper-09",
+          "nome": "Paper 9",
+          "arquivo": "./adesivos/paper/!9.svg"
+        },
+        {
+          "id": "paper-10",
+          "nome": "seta 1",
+          "arquivo": "./adesivos/paper/seta 1.svg"
+        },
+        {
+          "id": "paper-11",
+          "nome": "seta 2",
+          "arquivo": "./adesivos/paper/seta 2.svg"
+        },
+        {
+          "id": "paper-12",
+          "nome": "seta 3",
+          "arquivo": "./adesivos/paper/seta 3.svg"
+        },
+        {
+          "id": "paper-13",
+          "nome": "seta 4",
+          "arquivo": "./adesivos/paper/seta 4.svg"
+        },
+        {
+          "id": "paper-14",
+          "nome": "seta 5",
+          "arquivo": "./adesivos/paper/seta 5.svg"
+        },
+        {
+          "id": "paper-15",
+          "nome": "seta 6",
+          "arquivo": "./adesivos/paper/seta 6.svg"
+        },
+        {
+          "id": "paper-16",
+          "nome": "seta 7",
+          "arquivo": "./adesivos/paper/seta 7.svg"
+        },
+        {
+          "id": "paper-17",
+          "nome": "seta 8",
+          "arquivo": "./adesivos/paper/seta 8.svg"
+        },
+        {
+          "id": "paper-18",
+          "nome": "seta 9",
+          "arquivo": "./adesivos/paper/seta 9.svg"
+        },
+        {
+          "id": "paper-19",
+          "nome": "seta 10",
+          "arquivo": "./adesivos/paper/seta 10.svg"
+        },
+        {
+          "id": "paper-20",
+          "nome": "seta 11",
+          "arquivo": "./adesivos/paper/seta 11.svg"
+        },
+        {
+          "id": "paper-21",
+          "nome": "seta 12",
+          "arquivo": "./adesivos/paper/seta 12.svg"
+        },
+        {
+          "id": "paper-22",
+          "nome": "seta 13",
+          "arquivo": "./adesivos/paper/seta 13.svg"
         }
       ]
     },
     {
-      "id": "y2k",
-      "nome": "Y2K & retrô",
+      "id": "retro",
+      "nome": "Retrô",
       "adesivos": [
         {
-          "id": "seta",
-          "nome": "Seta 3D",
-          "arquivo": "./adesivos/y2k/seta.svg"
+          "id": "retro-01",
+          "nome": "blue star",
+          "arquivo": "./adesivos/retro/blue star.svg"
         },
         {
-          "id": "chama",
-          "nome": "Chama",
-          "arquivo": "./adesivos/y2k/chama.svg"
+          "id": "retro-02",
+          "nome": "boom",
+          "arquivo": "./adesivos/retro/boom.svg"
         },
         {
-          "id": "disco",
-          "nome": "Disco",
-          "arquivo": "./adesivos/y2k/disco.svg"
+          "id": "retro-03",
+          "nome": "hand",
+          "arquivo": "./adesivos/retro/hand.svg"
         },
         {
-          "id": "arcoiris",
-          "nome": "Arco-íris",
-          "arquivo": "./adesivos/y2k/arcoiris.svg"
-        }
-      ]
-    },
-    {
-      "id": "natureza",
-      "nome": "Natureza",
-      "adesivos": [
-        {
-          "id": "flor",
-          "nome": "Flor",
-          "arquivo": "./adesivos/natureza/flor.svg"
+          "id": "retro-04",
+          "nome": "happy",
+          "arquivo": "./adesivos/retro/happy.svg"
         },
         {
-          "id": "borboleta",
-          "nome": "Borboleta",
-          "arquivo": "./adesivos/natureza/borboleta.svg"
+          "id": "retro-05",
+          "nome": "heart",
+          "arquivo": "./adesivos/retro/heart.svg"
         },
         {
-          "id": "cerejas",
-          "nome": "Cerejas",
-          "arquivo": "./adesivos/natureza/cerejas.svg"
+          "id": "retro-06",
+          "nome": "its ok",
+          "arquivo": "./adesivos/retro/its ok.svg"
         },
         {
-          "id": "nuvem",
-          "nome": "Nuvem",
-          "arquivo": "./adesivos/natureza/nuvem.svg"
-        }
-      ]
-    },
-    {
-      "id": "formas",
-      "nome": "Formas & detalhes",
-      "adesivos": [
-        {
-          "id": "sparkle",
-          "nome": "Brilho",
-          "arquivo": "./adesivos/formas/sparkle.svg"
+          "id": "retro-07",
+          "nome": "orange star",
+          "arquivo": "./adesivos/retro/orange star.svg"
         },
         {
-          "id": "planeta",
-          "nome": "Planeta",
-          "arquivo": "./adesivos/formas/planeta.svg"
+          "id": "retro-08",
+          "nome": "pink star",
+          "arquivo": "./adesivos/retro/pink star.svg"
         },
         {
-          "id": "fitinha",
-          "nome": "Fita",
-          "arquivo": "./adesivos/formas/fitinha.svg"
+          "id": "retro-09",
+          "nome": "read more",
+          "arquivo": "./adesivos/retro/read more.svg"
         },
         {
-          "id": "sol",
-          "nome": "Sol",
-          "arquivo": "./adesivos/formas/sol.svg"
+          "id": "retro-10",
+          "nome": "world",
+          "arquivo": "./adesivos/retro/world.svg"
+        },
+        {
+          "id": "retro-11",
+          "nome": "yellow star",
+          "arquivo": "./adesivos/retro/yellow star.svg"
         }
       ]
     }
