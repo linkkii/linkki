@@ -948,6 +948,49 @@ function brand(light = false) {
   `;
 }
 
+// Em navegadores móveis, o vídeo pode ser pausado após sair da área visível
+// ou depois de um ciclo. Reativa apenas quando a mídia estiver visível.
+let linkkiLandingVideoObserver = null;
+function linkkiBindLandingVideos() {
+  linkkiLandingVideoObserver?.disconnect();
+  const videos = [...document.querySelectorAll('.hero-intro-video, .landing-feature__video')];
+  if (!videos.length) return;
+  const start = (video) => {
+    if (!video.isConnected || document.hidden) return;
+    video.muted = true;
+    video.defaultMuted = true;
+    video.loop = true;
+    video.playsInline = true;
+    video.setAttribute('webkit-playsinline', '');
+    const attempt = video.play();
+    if (attempt?.catch) attempt.catch(() => {});
+  };
+  videos.forEach(video => {
+    video.addEventListener('ended', () => { video.currentTime = 0; start(video); }, { passive: true });
+    video.addEventListener('pause', () => {
+      if (video.dataset.linkkiVisible === 'true' && !document.hidden && !video.ended) start(video);
+    }, { passive: true });
+  });
+  if ('IntersectionObserver' in window) {
+    linkkiLandingVideoObserver = new IntersectionObserver(entries => {
+      entries.forEach(entry => {
+        const video = entry.target;
+        video.dataset.linkkiVisible = String(entry.isIntersecting);
+        if (entry.isIntersecting) start(video);
+      });
+    }, { threshold: 0.01 });
+    videos.forEach(video => linkkiLandingVideoObserver.observe(video));
+  } else videos.forEach(start);
+}
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden) document.querySelectorAll('.hero-intro-video, .landing-feature__video').forEach(video => {
+    if (video.dataset.linkkiVisible !== 'false' && video.paused) {
+      const attempt = video.play();
+      if (attempt?.catch) attempt.catch(() => {});
+    }
+  });
+});
+
 function landingPage() {
   return `
     <main class="landing">
@@ -2511,6 +2554,8 @@ function render() {
   }
   bindEvents();
   initializeTurnstile();
+  if (route === "home") linkkiBindLandingVideos();
+  else linkkiLandingVideoObserver?.disconnect();
   lastRenderedRoute = route;
   // Ao voltar ao editor com Analytics já selecionado, consulta os números atuais.
   if (route === 'editor' && !sameRoute && state.account.loggedIn &&
