@@ -971,21 +971,10 @@ function landingPage() {
           <div class="hero-note">Grátis para começar · Sem cartão</div>
         </div>
 
-        <div class="hero-visual" aria-label="Exemplo de página criada na Linkki">
-          <div class="hero-orbit"></div>
-          <div class="float-card float-card--one"><span class="float-icon">↗</span> Todos os seus links</div>
-          <div class="float-card float-card--two"><span class="float-icon">✦</span> Do seu jeito</div>
-          <div class="phone">
-            <div class="phone-screen">
-              <div class="demo-avatar">MC</div>
-              <div class="demo-name">Marina Costa</div>
-              <p class="demo-handle">@marina</p>
-              <p class="demo-bio">Criatividade, rotina e tudo que inspira meu caminho.</p>
-              <div class="demo-link">Meu portfólio <span>↗</span></div>
-              <div class="demo-link">Vídeo novo no canal <span>↗</span></div>
-              <div class="demo-link">Fale comigo <span>↗</span></div>
-            </div>
-          </div>
+        <div class="hero-visual hero-visual--animated" aria-label="Animação de apresentação da Linkki">
+          <video class="hero-intro-video" autoplay muted loop playsinline preload="metadata" aria-label="Animação principal da Linkki">
+            <source src="./principal.webm" type="video/webm" />
+          </video>
         </div>
       </section>
 
