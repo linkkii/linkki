@@ -2255,13 +2255,8 @@ function supportPanel() {
       <span>?</span><div><h2>Como podemos ajudar?</h2><p>A central completa será conectada nas próximas etapas.</p></div>
       <label class="support-search"><span>⌕</span><input type="search" placeholder="Buscar uma dúvida..." aria-label="Buscar no suporte" /></label>
     </section>
-    <div class="support-category-grid">
-      <article><span>✦</span><strong>Primeiros passos</strong><p>Conta, páginas e publicação.</p></article>
-      <article><span>◐</span><strong>Personalização</strong><p>Cores, fontes e modelos.</p></article>
-      <article><span>◎</span><strong>Comunidade</strong><p>Modelos, curtidas e usos.</p></article>
-    </div>
     <section class="card support-faq">
-      <div class="card-title"><h2>Perguntas frequentes</h2><span class="base-badge">BASE</span></div>
+      <div class="card-title"><h2>Perguntas frequentes</h2></div>
       <details><summary>Como publico minha página?</summary><p>Abra o editor, conclua as informações e use o botão Publicar no topo.</p></details>
       <details><summary>Aplicar um modelo remove meus links?</summary><p>Não. O modelo altera apenas a aparência; nome, bio e links são preservados.</p></details>
       <details><summary>O que acontece se eu remover um modelo da comunidade?</summary><p>A publicação pública é removida, mas sua página original continua salva.</p></details>
