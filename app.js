@@ -133,6 +133,7 @@ const defaultState = {
     username: "",
     email: "",
     category: "",
+    accountPhoto: "",
     verified: false,
     loggedIn: false,
   },
@@ -963,7 +964,7 @@ function landingPage() {
           <h1>Conecte tudo <span>que é seu.</span></h1>
           <p>
             Reúna seus links, projetos, redes e conteúdos em uma página única,
-            bonita e completamente sua.
+            bonita e completamente sua
           </p>
           <div class="hero-actions">
             <a class="button button--primary" href="#signup">Criar minha página <span aria-hidden="true">→</span></a>
@@ -987,7 +988,7 @@ function landingPage() {
           </div>
           <div class="landing-feature__copy">
             <h2 id="feature-stickers-title">Uma página com a sua cara.</h2>
-            <p>Adicione stickers, combine cores e crie uma identidade que é só sua.</p>
+            <p>Adicione stickers, combine cores e crie uma identidade que é só sua</p>
             <a class="landing-feature__button" href="#signup">Criar minha Linkki</a>
           </div>
         </div>
@@ -997,7 +998,7 @@ function landingPage() {
         <div class="landing-feature__inner">
           <div class="landing-feature__copy">
             <h2 id="feature-analytics-title">Entenda cada clique.</h2>
-            <p>Acompanhe as visitas e descubra quais links recebem mais atenção.</p>
+            <p>Acompanhe as visitas e descubra quais links recebem mais atenção</p>
             <a class="landing-feature__button" href="#signup">Começar gratuitamente</a>
           </div>
           <div class="landing-feature__media">
@@ -1150,7 +1151,7 @@ function signupPage() {
     `;
   }
 
-  return authShell(content, "Sua Linkki começa com você.", "Crie sua conta, diga o que você faz e transforme seus caminhos em uma página única.");
+  return authShell(content, "Sua Linkki começa com você.", "Crie sua conta, diga o que você faz e transforme seus caminhos em uma página única");
 }
 
 function loginPage() {
@@ -1179,7 +1180,7 @@ function loginPage() {
     ` : `<a class="button button--primary auth-submit" href="#signup">Criar minha conta</a>`}
     <p class="auth-switch"><a href="#home">← Voltar para o início</a></p>
   `;
-  return authShell(content, "Bom ter você de volta.", "Acesse sua conta para editar, personalizar e acompanhar sua página.");
+  return authShell(content, "Bom ter você de volta.", "Acesse sua conta para editar, personalizar e acompanhar sua página");
 }
 
 function avatarMarkup(className = "profile-avatar", profile = state.profile) {
@@ -2195,7 +2196,11 @@ function accountPanel() {
     </div>
     <div class="account-overview">
       <section class="account-identity-card">
-        <div class="account-avatar">${escapeHtml(initials(accountName))}</div>
+        <label class="linkki-account-photo-control" title="Alterar foto da conta">
+          <span class="account-avatar">${safeImageSrc(state.account.accountPhoto) ? `<img src="${escapeHtml(safeImageSrc(state.account.accountPhoto))}" alt="Foto da conta" />` : escapeHtml(initials(accountName))}</span>
+          <span class="linkki-account-photo-hint">${state.account.accountPhoto ? 'Trocar foto' : 'Adicionar foto'}</span>
+          <input id="linkki-account-photo-input" type="file" accept="image/jpeg,image/png,image/webp" hidden />
+        </label>
         <h2>${escapeHtml(accountName)}</h2>
         <p>@${escapeHtml(state.account.username || state.profile.username)}</p>
         <span class="verified-pill">✓ E-mail verificado</span>
@@ -2609,6 +2614,24 @@ function bindEvents() {
     if (error) error.textContent = message;
   };
 
+  document.querySelector('#linkki-account-photo-input')?.addEventListener('change', async event => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    if (!['image/jpeg','image/png','image/webp'].includes(file.type) || file.size > 5 * 1024 * 1024) {
+      showToast('Escolha JPG, PNG ou WebP de até 5 MB.'); return;
+    }
+    try {
+      const bitmap = await createImageBitmap(file);
+      const side = Math.min(bitmap.width, bitmap.height);
+      const canvas = document.createElement('canvas');
+      canvas.width = canvas.height = 256;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(bitmap, (bitmap.width-side)/2, (bitmap.height-side)/2, side, side, 0, 0, 256, 256);
+      bitmap.close?.();
+      state.account.accountPhoto = canvas.toDataURL('image/jpeg', .76);
+      saveState(); render(); showToast('Foto da conta atualizada.');
+    } catch (error) { console.warn(error); showToast('Não foi possível carregar a foto.'); }
+  });
   document.querySelectorAll('[data-account-edit]').forEach(button => button.addEventListener('click', () => {
     const type = button.dataset.accountEdit;
     const parent = button.closest('.linkki-account-value');

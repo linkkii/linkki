@@ -4286,3 +4286,20 @@ button.template-stat {
 
 /* Personalização: fundo branco contínuo com as demais seções. */
 .landing-feature--stickers { background: #ffffff; }
+
+/* Botão de análises: texto branco */
+.landing-feature--analytics .landing-feature__button,
+.landing-feature--analytics .landing-feature__button:visited { color: #ffffff; }
+
+/* Ajustes visuais: rodapé branco e foto independente da conta */
+.landing-footer { background:#fff !important; color:#2a3c24 !important; }
+.landing-footer .brand, .landing-footer .brand * { color:#2a3c24 !important; }
+.linkki-account-photo-control { display:flex; flex-direction:column; align-items:center; gap:8px; cursor:pointer; width:max-content; margin:0 auto; }
+.linkki-account-photo-control .account-avatar { margin:0; overflow:hidden; }
+.linkki-account-photo-control .account-avatar img { width:100%; height:100%; object-fit:cover; display:block; }
+.linkki-account-photo-hint { font-size:12px; font-weight:700; color:#d7e8ad; }
+.linkki-account-photo-control:hover .account-avatar { box-shadow:0 0 0 3px rgba(255,255,255,.22); }
+/* Menu flutuante: entrada suave e respeita acessibilidade */
+.linkki-category-popover:not([hidden]) { animation:linkki-popover-enter .23s cubic-bezier(.2,.8,.2,1) both; transform-origin:top right; }
+@keyframes linkki-popover-enter { from { opacity:0; transform:translateY(-7px) scale(.975); } to { opacity:1; transform:translateY(0) scale(1); } }
+@media (prefers-reduced-motion:reduce) { .linkki-category-popover:not([hidden]) { animation:none; } }
