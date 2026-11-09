@@ -543,6 +543,7 @@ let publishInProgress = false;
 function editableSnapshot() {
   return {
     profile: state.profile,
+    accountPhoto: state.account.accountPhoto || "",
     links: state.links,
     analytics: { views: 0, shares: 0 },
     userPages: state.userPages,
@@ -559,6 +560,8 @@ function applyCloudSnapshot(snapshot) {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(snapshot));
     const normalized = loadState();
     state.profile = normalized.profile;
+    // Foto da conta pertence ao usuário, não à foto de nenhuma página.
+    state.account.accountPhoto = safeImageSrc(snapshot.accountPhoto || snapshot.account?.accountPhoto || "");
     state.links = normalized.links;
     state.analytics = { views: 0, shares: 0 };
     state.userPages = normalized.userPages;
@@ -664,6 +667,8 @@ async function initializeCloudForUser(user) {
       state.profile.published = false;
     }
   }
+  // Recupera a foto também em outro navegador/guia anônima após o login.
+  state.account.accountPhoto = safeImageSrc(state.account.accountPhoto || user.user_metadata?.linkki_account_photo || "");
   state.account.email = user.email || state.account.email;
   state.account.firstName = user.user_metadata?.first_name || state.account.firstName;
   state.account.lastName = user.user_metadata?.last_name || state.account.lastName;
@@ -1763,7 +1768,25 @@ async function linkkiCompactPagePreview(page) {
     linkkiTemplatePreviewImage(preview.avatar),
     linkkiTemplatePreviewImage(preview.bannerImage)
   ]);
-  return { ...preview, avatar, bannerImage: banner };
+  return { ...preview, avatar, bannerImage: banner, authorPhoto: await linkkiTemplatePreviewImage(state.account.accountPhoto || "") };
+}
+
+// Sincroniza a foto do AUTOR dos modelos existentes, sem alterar a imagem de cada página.
+async function linkkiRefreshAccountPhotoInTemplates(photo) {
+  if (!authClient || !cloudReady || !cloudUserId) return;
+  const owner = cloudUserId;
+  const { data: rows, error } = await authClient.from(LINKKI_TEMPLATE_PREVIEW_TABLE)
+    .select('template_id,snapshot').eq('owner_id', owner);
+  if (error) { console.warn('Linkki: foto dos modelos não sincronizada', error); return; }
+  for (const row of rows || []) {
+    if (owner !== cloudUserId) return;
+    const { error: updateError } = await authClient.from(LINKKI_TEMPLATE_PREVIEW_TABLE)
+      .update({ snapshot: { ...(row.snapshot || {}), authorPhoto: photo } })
+      .eq('template_id', row.template_id).eq('owner_id', owner);
+    if (updateError) console.warn('Linkki: erro ao atualizar foto do autor', updateError);
+  }
+  state.communityTemplates.forEach(t => { if (t.ownerId === 'self') t.authorPhoto = photo; });
+  if (state.activeSection === 'community') render();
 }
 
 // Identidade do modelo publicada separadamente, pois a função RPC antiga
@@ -1828,7 +1851,7 @@ function communityTemplateCard(template, mine = false) {
           <div><strong>${escapeHtml(template.title)}</strong><span>${escapeHtml(template.category)}</span></div>
           ${mine ? `<span class="published-badge">Publicado</span>` : ""}
         </div>
-        <div class="template-author"><span>${escapeHtml(template.initials || initials(template.author))}</span><strong>${escapeHtml(template.official ? "Linkki" : template.author)}</strong>${template.official ? `<span class="linkki-official-badge" title="Conta oficial do Linkki" aria-label="Oficial">✓ Oficial</span>` : ""}</div>
+        <div class="template-author"><span>${safeImageSrc(template.authorPhoto) ? `<img src="${escapeHtml(safeImageSrc(template.authorPhoto))}" alt="Foto de ${escapeHtml(template.author)}" />` : escapeHtml(template.initials || initials(template.author))}</span><strong>${escapeHtml(template.official ? "Linkki" : template.author)}</strong>${template.official ? `<span class="linkki-official-badge" title="Conta oficial do Linkki" aria-label="Oficial">✓ Oficial</span>` : ""}</div>
         <div class="template-stats">
           <button class="template-stat ${template.liked ? "is-liked" : ""}" data-action="like-template" data-template-id="${escapeHtml(template.id)}" aria-label="${template.liked ? "Remover curtida" : "Curtir modelo"}">${template.liked ? "♥" : "♡"} <span>${formatCount(template.likes)}</span></button>
           <span class="template-stat">◎ <span>${formatCount(template.uses)} usos</span></span>
@@ -1889,6 +1912,7 @@ async function loadCommunityTemplates() {
       category: item.category, likes: Number(item.likes) || 0,
       uses: Number(item.uses) || 0, liked: item.liked === true, published: true,
       appearance: { ...(item.appearance || {}), previewSnapshot: usablePreview },
+      authorPhoto: safeImageSrc(item.owner_id === owner ? state.account.accountPhoto : (saved?.snapshot?.authorPhoto || embedded?.authorPhoto || '')),
       profileAvatar: usablePreview.avatar || '',
       previewName: usablePreview.name || '',
       username: usablePreview.username || '',
@@ -2220,7 +2244,7 @@ function appMenuMarkup() {
         `).join("")}
       </nav>
       <div class="drawer-account">
-        <span>${escapeHtml(initials(accountName))}</span>
+        <span>${safeImageSrc(state.account.accountPhoto) ? `<img src="${escapeHtml(safeImageSrc(state.account.accountPhoto))}" alt="Foto da conta" />` : escapeHtml(initials(accountName))}</span>
         <div><strong>${escapeHtml(accountName)}</strong><small>${escapeHtml(state.account.email || `@${state.profile.username}`)}</small></div>
       </div>
       <div style="padding:12px 20px 22px">
@@ -2669,12 +2693,30 @@ function bindEvents() {
       const bitmap = await createImageBitmap(file);
       const side = Math.min(bitmap.width, bitmap.height);
       const canvas = document.createElement('canvas');
-      canvas.width = canvas.height = 256;
+      canvas.width = canvas.height = 160;
       const ctx = canvas.getContext('2d');
-      ctx.drawImage(bitmap, (bitmap.width-side)/2, (bitmap.height-side)/2, side, side, 0, 0, 256, 256);
+      ctx.drawImage(bitmap, (bitmap.width-side)/2, (bitmap.height-side)/2, side, side, 0, 0, 160, 160);
       bitmap.close?.();
-      state.account.accountPhoto = canvas.toDataURL('image/jpeg', .76);
-      saveState(); render(); showToast('Foto da conta atualizada.');
+      const photo = canvas.toDataURL('image/jpeg', .7);
+      if (!authClient || !cloudReady || !cloudUserId) {
+        showToast('Aguarde a conexão com sua conta para salvar a foto.'); return;
+      }
+      const previous = state.account.accountPhoto;
+      state.account.accountPhoto = photo;
+      saveState(); render();
+      // Grava no Auth para recuperação entre dispositivos, e no snapshot da conta.
+      const { error: photoError } = await authClient.auth.updateUser({ data: { linkki_account_photo: photo } });
+      if (photoError) {
+        state.account.accountPhoto = previous;
+        saveState(); render();
+        showToast('Não foi possível salvar a foto na conta. Tente novamente.');
+        console.warn('Linkki: falha ao salvar foto da conta', photoError);
+        return;
+      }
+      queueCloudSave();
+      // Atualiza a identidade do autor em modelos publicados, sem tocar nas fotos das páginas.
+      void linkkiRefreshAccountPhotoInTemplates(photo);
+      showToast('Foto da conta atualizada.');
     } catch (error) { console.warn(error); showToast('Não foi possível carregar a foto.'); }
   });
   document.querySelectorAll('[data-account-edit]').forEach(button => button.addEventListener('click', () => {
