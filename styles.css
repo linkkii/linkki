@@ -4251,3 +4251,8 @@ button.template-stat {
 @media (max-width: 760px) {
   .landing-feature--analytics .landing-feature__video { width: 85%; max-width: 410px; }
 }
+
+/* Ajuste pontual: deslocar somente a animação de stickers à direita no desktop. */
+@media (min-width: 761px) {
+  .landing-feature--stickers .landing-feature__video { transform: translateX(65px); }
+}
