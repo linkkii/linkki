@@ -960,7 +960,6 @@ function landingPage() {
 
       <section class="hero">
         <div class="hero-copy">
-          <div class="eyebrow"><span class="eyebrow-dot"></span> Sua presença, do seu jeito</div>
           <h1>Conecte tudo <span>que é seu.</span></h1>
           <p>
             Reúna seus links, projetos, redes e conteúdos em uma página única,
@@ -968,9 +967,8 @@ function landingPage() {
           </p>
           <div class="hero-actions">
             <a class="button button--primary" href="#signup">Criar minha página <span aria-hidden="true">→</span></a>
-            <a class="button button--ghost" href="#public">Ver uma Linkki</a>
           </div>
-          <div class="hero-note">Grátis para começar · Sem cartão · Pronto em minutos</div>
+          <div class="hero-note">Grátis para começar · Sem cartão</div>
         </div>
 
         <div class="hero-visual" aria-label="Exemplo de página criada na Linkki">
@@ -987,6 +985,38 @@ function landingPage() {
               <div class="demo-link">Vídeo novo no canal <span>↗</span></div>
               <div class="demo-link">Fale comigo <span>↗</span></div>
             </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="landing-feature landing-feature--stickers" aria-labelledby="feature-stickers-title">
+        <div class="landing-feature__inner">
+          <div class="landing-feature__media">
+            <video class="landing-feature__video" autoplay muted loop playsinline preload="metadata" aria-label="Animação de adesivos para personalizar sua página">
+              <source src="./stickers-linkki.webm" type="video/webm" />
+            </video>
+          </div>
+          <div class="landing-feature__copy">
+            <span class="landing-feature__eyebrow">PERSONALIZAÇÃO</span>
+            <h2 id="feature-stickers-title">Uma página com a sua cara.</h2>
+            <p>Adicione stickers, combine cores e crie uma identidade que é só sua.</p>
+            <a class="landing-feature__button" href="#signup">Criar minha Linkki <span aria-hidden="true">→</span></a>
+          </div>
+        </div>
+      </section>
+
+      <section class="landing-feature landing-feature--analytics" aria-labelledby="feature-analytics-title">
+        <div class="landing-feature__inner">
+          <div class="landing-feature__copy">
+            <span class="landing-feature__eyebrow">ANÁLISES</span>
+            <h2 id="feature-analytics-title">Entenda cada clique.</h2>
+            <p>Acompanhe as visitas e descubra quais links recebem mais atenção.</p>
+            <a class="landing-feature__button" href="#signup">Começar gratuitamente <span aria-hidden="true">→</span></a>
+          </div>
+          <div class="landing-feature__media">
+            <video class="landing-feature__video" autoplay muted loop playsinline preload="metadata" aria-label="Animação das métricas e análises de cliques">
+              <source src="./analises.mp4" type="video/mp4" />
+            </video>
           </div>
         </div>
       </section>

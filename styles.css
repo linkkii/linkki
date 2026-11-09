@@ -4171,3 +4171,47 @@ button.template-stat {
     width: min(290px, calc(100vw - 65px));
   }
 }
+
+/* Correção: menu de categoria sobreposto, sem corte pelo contêiner. */
+.account-detail-list.linkki-inline-account { overflow: visible; }
+.account-detail-list.linkki-inline-account > .linkki-account-line:first-child { border-radius: 12px 12px 0 0; }
+.account-detail-list.linkki-inline-account > .linkki-account-line:last-child { border-radius: 0 0 12px 12px; }
+.account-detail-list.linkki-inline-account > .linkki-account-line:has(.linkki-category-popover:not([hidden])) { z-index: 60; }
+.account-detail-list.linkki-inline-account .linkki-account-value { position: relative; }
+.account-detail-list.linkki-inline-account .linkki-category-popover:not([hidden]) { position: absolute; right: 0; top: 100%; z-index: 70; }
+/* Edição do nickname compacta, sem espaço vertical reservado para mensagens vazias. */
+.account-detail-list.linkki-inline-account > .linkki-account-line:has([data-form="change-username"]:not([hidden])) { min-height: 64px; padding-top: 7px; padding-bottom: 7px; }
+.account-detail-list.linkki-inline-account [data-form="change-username"] { width: auto; max-width: 100%; flex-wrap: nowrap; align-items: center; gap: 6px; }
+.account-detail-list.linkki-inline-account [data-form="change-username"] .input { flex: 0 1 155px; min-width: 90px; width: 155px; height: 38px; padding: 7px 10px; }
+.account-detail-list.linkki-inline-account [data-form="change-username"] .linkki-inline-save,
+.account-detail-list.linkki-inline-account [data-form="change-username"] .linkki-inline-cancel { padding: 8px 10px; white-space: nowrap; }
+.account-detail-list.linkki-inline-account [data-form="change-username"] [data-account-username-status]:empty { display: none; }
+.account-detail-list.linkki-inline-account [data-form="change-username"] [data-account-username-status]:not(:empty) { position: absolute; top: calc(100% + 2px); right: 0; z-index: 4; width: max-content; max-width: 280px; background: white; padding: 4px 8px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,.09); }
+@media (max-width: 600px) {
+  .account-detail-list.linkki-inline-account [data-form="change-username"] { flex-wrap: wrap; justify-content: flex-end; }
+  .account-detail-list.linkki-inline-account [data-form="change-username"] .input { flex: 1 1 100%; }
+}
+
+/* Landing page: seções de funcionalidades, com animações em loop */
+.landing-feature { width:100%; padding:clamp(68px,8vw,130px) 24px; overflow:hidden; }
+.landing-feature--stickers { background:#dbe6b3; color:#283b25; }
+.landing-feature--analytics { background:#283b25; color:#f6f7ec; }
+.landing-feature__inner { max-width:1180px; margin:0 auto; display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:clamp(36px,6vw,100px); align-items:center; }
+.landing-feature__media { display:grid; place-items:center; min-width:0; min-height:clamp(260px,33vw,480px); }
+.landing-feature__video { display:block; width:100%; max-width:550px; max-height:500px; object-fit:contain; border-radius:16px; }
+.landing-feature__copy { min-width:0; }
+.landing-feature__eyebrow { display:block; margin-bottom:18px; font-size:12px; font-weight:800; letter-spacing:.14em; }
+.landing-feature__copy h2 { margin:0 0 22px; max-width:590px; font-size:clamp(42px,5vw,72px); line-height:1.04; letter-spacing:-.055em; font-weight:800; color:inherit; }
+.landing-feature__copy p { max-width:490px; margin:0 0 28px; font-size:clamp(16px,1.6vw,20px); line-height:1.55; color:inherit; opacity:.88; }
+.landing-feature__button { display:inline-flex; gap:16px; align-items:center; justify-content:center; padding:14px 24px; border-radius:999px; background:#a1c349; color:#283b25; font-weight:800; text-decoration:none; transition:transform .2s ease,filter .2s ease; }
+.landing-feature__button:hover { transform:translateY(-2px); filter:brightness(1.04); }
+.landing-feature--stickers .landing-feature__button { background:#283b25; color:#fff; }
+@media(max-width:760px) {
+ .landing-feature { padding:64px 22px; }
+ .landing-feature__inner { grid-template-columns:minmax(0,1fr); gap:28px; }
+ .landing-feature__copy { order:0; }
+ .landing-feature__media { order:1; min-height:220px; }
+ .landing-feature__copy h2 { font-size:clamp(38px,10vw,56px); }
+ .landing-feature__video { max-height:390px; }
+}
+@media(prefers-reduced-motion:reduce) { .landing-feature__button { transition:none; } }
