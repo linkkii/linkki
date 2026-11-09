@@ -2275,9 +2275,22 @@ function supportPanel() {
       <details><summary>Aplicar um modelo remove meus links?</summary><p>Não. O modelo altera apenas a aparência; nome, bio e links são preservados.</p></details>
       <details><summary>O que acontece se eu remover um modelo da comunidade?</summary><p>A publicação pública é removida, mas sua página original continua salva.</p></details>
     </section>
+    <section class="card support-ticket-entry">
+      <div><h2>Não encontrou sua resposta?</h2><p>Envie uma solicitação para nossa equipe.</p></div>
+      <button type="button" class="button button--primary" data-app-section="ticket">Enviar ticket</button>
+    </section>
+  `;
+}
+
+function ticketPanel() {
+  return `
+    <div class="panel-header section-panel-header">
+      <div><span class="section-eyebrow">AJUDA</span><h1>Enviar ticket</h1><p>Conte para nossa equipe como podemos ajudar.</p></div>
+      <button type="button" class="button button--ghost" data-app-section="support">← Voltar ao suporte</button>
+    </div>
     <section class="card support-ticket">
-      <div class="card-title"><h2>Enviar ticket</h2></div>
-      <p class="support-ticket-intro">Não encontrou sua resposta? Envie uma solicitação para nossa equipe.</p>
+      <div class="card-title"><h2>Solicitação de suporte</h2></div>
+      
       <form data-support-ticket>
         <div class="support-ticket-row">
           <label>Seu nome<input name="name" type="text" maxlength="100" autocomplete="name" required placeholder="Como podemos chamar você?" /></label>
@@ -2307,6 +2320,7 @@ function editorPage() {
     pages: myPagesPanel,
     community: communityPanel,
     support: supportPanel,
+    ticket: ticketPanel,
   };
   const isEditor = state.activeSection === "editor";
   const panel = isEditor ? (panels[state.activeTab] || contentPanel) : (sections[state.activeSection] || accountPanel);
