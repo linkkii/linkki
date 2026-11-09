@@ -4215,3 +4215,22 @@ button.template-stat {
  .landing-feature__video { max-height:390px; }
 }
 @media(prefers-reduced-motion:reduce) { .landing-feature__button { transition:none; } }
+
+/* Landing: composição compacta e animações em destaque (09/11). */
+@media (min-width: 761px) {
+  .landing-feature { padding-block: clamp(36px, 4vw, 62px); }
+  .landing-feature__inner { max-width: 1320px; gap: clamp(20px, 3vw, 54px); grid-template-columns: minmax(0, 1.12fr) minmax(0, .88fr); }
+  .landing-feature--analytics .landing-feature__inner { grid-template-columns: minmax(0, .88fr) minmax(0, 1.12fr); }
+  .landing-feature__media { min-height: 340px; height: clamp(340px, 30vw, 450px); overflow: visible; }
+  .landing-feature__video { width: 118%; max-width: none; height: 100%; max-height: none; object-fit: contain; border-radius: 0; }
+  .landing-feature__copy h2 { font-size: clamp(36px, 3.9vw, 57px); line-height: 1.07; margin-bottom: 17px; }
+  .landing-feature__copy p { font-size: clamp(16px, 1.3vw, 18px); margin-bottom: 22px; }
+}
+@media (max-width: 760px) {
+  .landing-feature { padding-block: 44px; }
+  .landing-feature__inner { gap: 12px; }
+  .landing-feature__copy h2 { font-size: clamp(34px, 8vw, 45px); margin-bottom: 14px; }
+  .landing-feature__copy p { margin-bottom: 18px; }
+  .landing-feature__media { min-height: 260px; }
+  .landing-feature__video { width: 100%; max-width: none; max-height: 450px; }
+}

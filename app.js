@@ -997,10 +997,9 @@ function landingPage() {
             </video>
           </div>
           <div class="landing-feature__copy">
-            <span class="landing-feature__eyebrow">PERSONALIZAÇÃO</span>
             <h2 id="feature-stickers-title">Uma página com a sua cara.</h2>
             <p>Adicione stickers, combine cores e crie uma identidade que é só sua.</p>
-            <a class="landing-feature__button" href="#signup">Criar minha Linkki <span aria-hidden="true">→</span></a>
+            <a class="landing-feature__button" href="#signup">Criar minha Linkki</a>
           </div>
         </div>
       </section>
@@ -1008,10 +1007,9 @@ function landingPage() {
       <section class="landing-feature landing-feature--analytics" aria-labelledby="feature-analytics-title">
         <div class="landing-feature__inner">
           <div class="landing-feature__copy">
-            <span class="landing-feature__eyebrow">ANÁLISES</span>
             <h2 id="feature-analytics-title">Entenda cada clique.</h2>
             <p>Acompanhe as visitas e descubra quais links recebem mais atenção.</p>
-            <a class="landing-feature__button" href="#signup">Começar gratuitamente <span aria-hidden="true">→</span></a>
+            <a class="landing-feature__button" href="#signup">Começar gratuitamente</a>
           </div>
           <div class="landing-feature__media">
             <video class="landing-feature__video" autoplay muted loop playsinline preload="metadata" aria-label="Animação das métricas e análises de cliques">
