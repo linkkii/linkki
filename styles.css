@@ -4130,3 +4130,20 @@ button.template-stat {
 .linkki-category-choice > span { color:var(--sprout); font-size:15px; }
 .linkki-category-popover small { grid-column:1/-1; }
 @media(max-width:540px){.linkki-inline-account .linkki-account-value{max-width:65%}.linkki-category-popover{grid-template-columns:1fr;width:min(250px,calc(100vw - 110px))}}
+
+/* FAQ: seta e painel animados em cada abertura e fechamento. */
+.support-faq details { overflow: hidden; }
+.support-faq details > summary { list-style: none; display: flex; align-items: center; gap: 9px; }
+.support-faq details > summary::-webkit-details-marker { display: none; }
+.support-faq details > summary::before {
+  content: ""; flex: 0 0 0; width: 0; height: 0;
+  border-left: 6px solid var(--root); border-top: 5px solid transparent;
+  border-bottom: 5px solid transparent;
+  transition: transform .34s cubic-bezier(.2,.75,.25,1);
+  transform-origin: 40% 50%;
+}
+.support-faq details[open] > summary::before { transform: rotate(90deg); }
+.support-faq details > p { animation: none !important; }
+@media (prefers-reduced-motion: reduce) {
+  .support-faq details > summary::before { transition: none; }
+}

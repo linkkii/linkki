@@ -3926,3 +3926,52 @@ function linkkiPageModal({ title, message = '', value, danger = false, confirmLa
 
 window.addEventListener("hashchange", render);
 window.addEventListener("DOMContentLoaded", () => { linkkiResetHistory(); restoreSupabaseSession(); void linkkiLoadStickerCatalog(); });
+
+
+// FAQ: animar a altura do cartão e o conteúdo tanto ao abrir quanto ao fechar.
+// O listener delegado continua funcionando depois que a tela de suporte é renderizada novamente.
+(function linkkiInitFaqAccordion() {
+  const active = new WeakMap();
+  document.addEventListener('click', (event) => {
+    const summary = event.target.closest?.('.support-faq details > summary');
+    if (!summary) return;
+    const details = summary.parentElement;
+    const answer = details.querySelector(':scope > p');
+    if (!answer) return;
+    event.preventDefault();
+    const previous = active.get(details);
+    if (previous) { previous.height.cancel(); previous.content?.cancel(); active.delete(details); }
+    const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const wasOpen = details.open;
+    if (reduced) { details.open = !wasOpen; return; }
+    const startHeight = details.getBoundingClientRect().height;
+    const summaryHeight = summary.getBoundingClientRect().height;
+    // Medir o conteúdo aberto antes de iniciar a transição.
+    details.open = true;
+    const expandedHeight = summaryHeight + answer.getBoundingClientRect().height +
+      parseFloat(getComputedStyle(answer).marginTop || 0) +
+      parseFloat(getComputedStyle(answer).marginBottom || 0) +
+      parseFloat(getComputedStyle(details).borderTopWidth || 0) +
+      parseFloat(getComputedStyle(details).borderBottomWidth || 0);
+    const targetHeight = wasOpen ? summaryHeight : expandedHeight;
+    details.style.height = startHeight + 'px';
+    const height = details.animate([
+      {height: startHeight + 'px'}, {height: targetHeight + 'px'}
+    ], {duration: 340, easing: 'cubic-bezier(.2,.75,.25,1)'});
+    const content = answer.animate(wasOpen ? [
+      {opacity: 1, transform: 'translateY(0)'},
+      {opacity: 0, transform: 'translateY(-7px)'}
+    ] : [
+      {opacity: 0, transform: 'translateY(-7px)'},
+      {opacity: 1, transform: 'translateY(0)'}
+    ], {duration: 300, easing: 'ease-out', fill: 'both'});
+    active.set(details, {height, content});
+    height.onfinish = () => {
+      if (active.get(details)?.height !== height) return;
+      details.open = !wasOpen;
+      details.style.height = '';
+      content.cancel();
+      active.delete(details);
+    };
+  });
+})();
