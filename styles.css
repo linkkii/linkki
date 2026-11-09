@@ -4010,3 +4010,27 @@ button.template-stat {
     overflow: hidden;
   }
 }
+
+/* Suporte: perguntas mais legíveis e resposta com entrada suave. */
+.support-faq .card-title h2 { font-size: 18px; }
+.support-faq summary {
+  font-size: 15px;
+  line-height: 1.5;
+  padding: 19px 4px;
+}
+.support-faq details p {
+  font-size: 14px;
+  line-height: 1.65;
+  margin: 0 4px 20px 19px;
+}
+.support-faq details[open] > p {
+  animation: linkki-faq-reveal .28s ease-out both;
+  transform-origin: top;
+}
+@keyframes linkki-faq-reveal {
+  from { opacity: 0; transform: translateY(-9px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .support-faq details[open] > p { animation: none; }
+}
