@@ -2387,11 +2387,12 @@ function editorPage() {
           <button class="topbar-logo" data-app-section="editor" aria-label="Abrir editor">${brand()}</button>
         </div>
         <div class="topbar-actions">
+          ${isEditor ? `
           <span class="save-status">Salvo neste navegador</span>
-          ${isEditor ? `<a class="button button--ghost button--small" href="#public">Prévia da página</a>` : ""}
+          <a class="button button--ghost button--small" href="#public">Prévia da página</a>
           <button class="button ${state.profile.published ? "button--accent" : "button--primary"} button--small" data-action="publish">
             ${state.profile.published ? (hasUnpublishedChanges() ? "Publicar alterações" : "Publicado") : "Publicar"}
-          </button>
+          </button>` : ""}
         </div>
       </header>
       ${appMenuMarkup()}
