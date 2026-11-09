@@ -4042,3 +4042,12 @@ button.template-stat {
   user-select: none;
   -webkit-tap-highlight-color: transparent;
 }
+
+/* Busca contextual da Central de Ajuda; FAQ permanece separado */
+.support-results[hidden] { display: none !important; }
+.support-results { padding: 20px 24px; margin-bottom: 18px; }
+.support-results-count { font-size: 12px; opacity: .7; margin: 0 0 10px; }
+.support-result { padding: 14px 0; border-bottom: 1px solid var(--line); }
+.support-result:last-child { border-bottom: 0; }
+.support-result h3 { font-size: 14px; margin: 0 0 6px; }
+.support-result p, .support-results-empty { font-size: 13px; line-height: 1.6; margin: 0; }
