@@ -4262,3 +4262,9 @@ button.template-stat {
 .landing-feature--analytics .landing-feature__copy h2,
 .landing-feature--analytics .landing-feature__copy p { color: #283b25; }
 .landing-feature--analytics .landing-feature__video { mix-blend-mode: normal; }
+
+/* Ajustes solicitados na página inicial: ocultar nota e deslocar stickers. */
+.landing .hero-note { display: none; }
+@media (min-width: 761px) {
+  .landing-feature--stickers .landing-feature__video { transform: translateX(150px); }
+}
