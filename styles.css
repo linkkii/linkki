@@ -4234,3 +4234,20 @@ button.template-stat {
   .landing-feature__media { min-height: 260px; }
   .landing-feature__video { width: 100%; max-width: none; max-height: 450px; }
 }
+
+/* Ajustes de composição das seções da página inicial */
+@media (min-width: 761px) {
+  .landing-feature--stickers .landing-feature__copy { order: 1; }
+  .landing-feature--stickers .landing-feature__media { order: 2; }
+  .landing-feature--analytics .landing-feature__media { order: 1; }
+  .landing-feature--analytics .landing-feature__copy { order: 2; }
+  .landing-feature--analytics .landing-feature__inner { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+  .landing-feature--analytics .landing-feature__video { width: 82%; max-width: 460px; }
+}
+/* O MP4 de análises possui fundo branco embutido. Multiply mescla o branco ao fundo verde.
+   Para remoção real do branco, exportar o vídeo com alpha. */
+.landing-feature--analytics .landing-feature__video { mix-blend-mode: multiply; border-radius: 0; }
+.landing-feature--analytics .landing-feature__media { isolation: auto; }
+@media (max-width: 760px) {
+  .landing-feature--analytics .landing-feature__video { width: 85%; max-width: 410px; }
+}

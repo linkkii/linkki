@@ -1019,22 +1019,7 @@ function landingPage() {
         </div>
       </section>
 
-      <section class="value-strip" aria-label="Vantagens da Linkki">
-        <div class="value-grid">
-          <article class="value-card">
-            <strong>Todos os caminhos</strong>
-            <p>Centralize o que importa e facilite para as pessoas encontrarem você.</p>
-          </article>
-          <article class="value-card">
-            <strong>Sua identidade</strong>
-            <p>Escolha aparência, organização e conteúdo sem perder a personalidade.</p>
-          </article>
-          <article class="value-card">
-            <strong>Simples de verdade</strong>
-            <p>Edite, reorganize e publique em poucos cliques, direto do celular.</p>
-          </article>
-        </div>
-      </section>
+
 
       <footer class="landing-footer">
         ${brand(true)}
