@@ -4256,3 +4256,9 @@ button.template-stat {
 @media (min-width: 761px) {
   .landing-feature--stickers .landing-feature__video { transform: translateX(65px); }
 }
+
+/* CORREÇÃO: toda a seção de análises é branca, não apenas o fundo do vídeo. */
+.landing-feature--analytics { background: #ffffff; color: #283b25; }
+.landing-feature--analytics .landing-feature__copy h2,
+.landing-feature--analytics .landing-feature__copy p { color: #283b25; }
+.landing-feature--analytics .landing-feature__video { mix-blend-mode: normal; }
