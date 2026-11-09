@@ -4246,7 +4246,7 @@ button.template-stat {
 }
 /* O MP4 de análises possui fundo branco embutido. Multiply mescla o branco ao fundo verde.
    Para remoção real do branco, exportar o vídeo com alpha. */
-.landing-feature--analytics .landing-feature__video { mix-blend-mode: multiply; border-radius: 0; }
+.landing-feature--analytics .landing-feature__video { mix-blend-mode: normal; border-radius: 0; }
 .landing-feature--analytics .landing-feature__media { isolation: auto; }
 @media (max-width: 760px) {
   .landing-feature--analytics .landing-feature__video { width: 85%; max-width: 410px; }
