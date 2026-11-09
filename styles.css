@@ -4273,3 +4273,13 @@ button.template-stat {
 .hero-visual--animated { min-height: 0; display: flex; align-items: center; justify-content: center; overflow: hidden; }
 .hero-intro-video { display: block; width: 100%; max-width: 720px; height: auto; object-fit: contain; border: 0; pointer-events: none; }
 @media (max-width: 760px) { .hero-visual--animated { min-height: 0; } .hero-intro-video { max-width: 100%; } }
+
+/* Ajuste pontual: animação principal maior e fundo branco uniforme. */
+.landing { background: #fff; }
+@media (min-width: 761px) {
+  .hero-visual--animated { overflow: visible; }
+  .hero-visual--animated .hero-intro-video { width: 125%; max-width: none; flex: 0 0 auto; }
+}
+@media (max-width: 760px) {
+  .hero-visual--animated .hero-intro-video { width: 100%; max-width: 100%; }
+}
