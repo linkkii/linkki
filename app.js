@@ -35,58 +35,10 @@ const authClient = (window.supabase && window.LINKKI_SUPABASE_URL && window.LINK
   ? window.supabase.createClient(window.LINKKI_SUPABASE_URL, window.LINKKI_SUPABASE_ANON_KEY)
   : null;
 
-// Indicador global de carregamento: aparece apenas enquanto há requisições reais.
-// Requisições em paralelo mantêm o indicador até a última terminar.
-const linkkiNativeFetch = window.fetch.bind(window);
-let linkkiPendingRequests = 0;
-let linkkiLoadingRevealTimer = null;
-function linkkiLoadingBackground() {
-  try {
-    const p = typeof state !== 'undefined' ? state.profile : null;
-    if (p && typeof linkkiBackgroundCss === 'function') {
-      const bg = linkkiBackgroundCss(p);
-      if (typeof bg === 'string' && bg.length < 600 && !/[;{}]/.test(bg)) return bg;
-    }
-  } catch (_) {}
-  return '#F7F8F3';
-}
-function linkkiGlobalLoadingElement() {
-  let el = document.getElementById('linkki-global-loading');
-  if (!el && document.body) {
-    el = document.createElement('div');
-    el.id = 'linkki-global-loading';
-    el.className = 'linkki-global-loading';
-    el.setAttribute('role','status');
-    el.setAttribute('aria-label','Carregando');
-    el.innerHTML = '<video src="./linkki-loading.webm" autoplay muted loop playsinline aria-hidden="true"></video><span class="linkki-loading-fallback" aria-hidden="true">✳</span>';
-    el.querySelector('video')?.addEventListener('error', () => el.classList.add('linkki-loading-video-failed'));
-    document.body.appendChild(el);
-  }
-  return el;
-}
-function linkkiUpdateLoading() {
-  if (linkkiPendingRequests > 0) {
-    if (linkkiLoadingRevealTimer) return;
-    linkkiLoadingRevealTimer = setTimeout(() => {
-      linkkiLoadingRevealTimer = null;
-      if (linkkiPendingRequests <= 0) return;
-      const el = linkkiGlobalLoadingElement();
-      if (!el) return;
-      el.style.background = linkkiLoadingBackground();
-      el.classList.add('is-visible');
-    }, 160);
-  } else {
-    clearTimeout(linkkiLoadingRevealTimer);
-    linkkiLoadingRevealTimer = null;
-    document.getElementById('linkki-global-loading')?.classList.remove('is-visible');
-  }
-}
-window.fetch = async function linkkiTrackedFetch(...args) {
-  linkkiPendingRequests += 1;
-  linkkiUpdateLoading();
-  try { return await linkkiNativeFetch(...args); }
-  finally { linkkiPendingRequests = Math.max(0, linkkiPendingRequests - 1); linkkiUpdateLoading(); }
-};
+// O loading da página pública é controlado por loadPublicRoute(),
+// exclusivamente durante a obtenção dos dados necessários à navegação.
+// Não interceptar window.fetch: buscas, cliques, menus, edições e salvamentos
+// em segundo plano não devem bloquear a interface com uma tela de loading.
 
 function requireAuthClient(form) {
   if (authClient) return true;
