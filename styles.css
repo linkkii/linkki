@@ -4076,3 +4076,22 @@ button.template-stat {
 .support-ticket-entry p { margin: 0; color: var(--muted, #687363); font-size: 14px; }
 .support-ticket-entry > button { flex-shrink: 0; }
 @media(max-width: 650px) { .support-ticket-entry { padding: 18px; flex-direction: column; align-items: stretch; } .support-ticket-entry > button { width: 100%; } }
+
+/* Ajustes de interface — novembro 2026 */
+.preview-phone {padding:0; border:0; background:transparent; border-radius:30px; box-shadow:0 12px 35px rgba(28,44,25,.14); overflow:hidden;}
+.preview-screen {border-radius:30px;}
+.preview-label {display:flex;align-items:center;justify-content:space-between;}
+.preview-history-controls {display:inline-flex;align-items:center;gap:5px;}
+.preview-history-controls [data-linkki-history] {margin:0;}
+.drag-handle {font-size:20px;letter-spacing:0;display:grid;place-items:center;cursor:grab;touch-action:none;}
+.drag-handle:active {cursor:grabbing;}
+.link-editor input {user-select:text;-webkit-user-select:text;}
+.linkki-account-edit-form {margin-top:20px;display:grid;gap:10px;}
+.linkki-account-edit-form .button {justify-self:start;}
+.template-stat.is-liked {color:#e14c78;font-weight:800;}
+.template-stat {font-size:15px;}
+.support-ticket .linkki-ticket-category {background-color:#f7f8f3;border-color:#cbd7b8;color:#293e25;cursor:pointer;accent-color:#a1c349;}
+.support-ticket .linkki-ticket-category:focus {box-shadow:0 0 0 3px rgba(161,195,73,.2);}
+.linkki-background-option--gradient {accent-color:#a1c349;}
+.linkki-background-option--gradient:has(input:checked) {border-color:#a1c349;background:#f3f8e8;box-shadow:0 0 0 2px rgba(161,195,73,.2);}
+.linkki-background-option--gradient:not(:has(input:checked)) {background:#f7f8f3;}

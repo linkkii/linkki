@@ -1370,8 +1370,8 @@ function contentPanel() {
 
 function linkEditor(link, index) {
   return `
-    <article class="link-editor" draggable="true" data-link-id="${escapeHtml(link.id)}">
-      <span class="drag-handle" title="Arraste para reorganizar" aria-hidden="true">•••</span>
+    <article class="link-editor" data-link-id="${escapeHtml(link.id)}">
+      <span class="drag-handle" draggable="true" title="Segure para reorganizar" aria-label="Arraste para reorganizar">☰</span>
       <div class="link-fields">
         <input class="input" data-link-field="title" value="${escapeHtml(link.title)}" maxlength="70" aria-label="Título do link ${index + 1}" placeholder="Título do link" />
         <input class="input" data-link-field="url" value="${escapeHtml(link.url)}" aria-label="Endereço do link ${index + 1}" placeholder="https://..." />
@@ -1453,7 +1453,7 @@ function appearancePanel() {
   return `
     <div class="panel-header">
       <div>
-        <h1>Aparência</h1>${linkkiHistoryControls()}
+        <h1>Aparência</h1>
         <p>Personalize cada parte da página e acompanhe o resultado na prévia.</p>
       </div>
     </div>
@@ -1782,7 +1782,7 @@ function communityTemplateCard(template, mine = false) {
         </div>
         <div class="template-author"><span>${escapeHtml(template.initials || initials(template.author))}</span><strong>${escapeHtml(template.official ? "Linkki" : template.author)}</strong>${template.official ? `<span class="linkki-official-badge" title="Conta oficial do Linkki" aria-label="Oficial">✓ Oficial</span>` : ""}</div>
         <div class="template-stats">
-          <button class="template-stat ${template.liked ? "is-liked" : ""}" data-action="like-template" data-template-id="${escapeHtml(template.id)}" aria-label="${template.liked ? "Remover curtida" : "Curtir modelo"}">♡ <span>${formatCount(template.likes)}</span></button>
+          <button class="template-stat ${template.liked ? "is-liked" : ""}" data-action="like-template" data-template-id="${escapeHtml(template.id)}" aria-label="${template.liked ? "Remover curtida" : "Curtir modelo"}">${template.liked ? "♥" : "♡"} <span>${formatCount(template.likes)}</span></button>
           <span class="template-stat">◎ <span>${formatCount(template.uses)} usos</span></span>
         </div>
         ${mine ? `
@@ -1882,10 +1882,10 @@ async function communityAction(action, payload, successMessage) {
 function communityTabResultsMarkup(publishedTemplates, myPublishedTemplates) {
   if (state.communityView === 'mine') {
     return myPublishedTemplates.length
-      ? `<div class="community-section-title"><div><h2>Meus modelos</h2><p>Modelos que você publicou.</p></div><span>${myPublishedTemplates.length} modelos</span></div><div class="community-grid">${myPublishedTemplates.map(template => communityTemplateCard(template, true)).join('')}</div>`
+      ? `<div class="community-section-title"><div><h2>Meus modelos</h2><p>Modelos que você publicou.</p></div></div><div class="community-grid">${myPublishedTemplates.map(template => communityTemplateCard(template, true)).join('')}</div>`
       : `<div class="community-empty"><span>木</span><strong>Nenhum modelo publicado</strong><p>Transforme uma das suas páginas em inspiração para a comunidade.</p><button class="button button--primary" data-community-view="publish">Publicar meu primeiro modelo</button></div>`;
   }
-  return `<div class="community-section-title"><div><h2>Em destaque</h2><p>Modelos que a comunidade está usando agora.</p></div><span>${publishedTemplates.length} modelos</span></div>
+  return `<div class="community-section-title"><div><h2>Em destaque</h2></div></div>
     ${publishedTemplates.length ? `<div class="community-grid">${publishedTemplates.map(template => communityTemplateCard(template)).join('')}</div>` : `<div class="community-empty"><span>木</span><strong>A comunidade está começando!</strong><p>Seja uma das primeiras pessoas a publicar um modelo.</p><button class="button button--primary" data-community-view="publish">Publicar modelo</button></div>`}`;
 }
 
@@ -1995,23 +1995,35 @@ function linkkiBindCommunityResults(results) {
       if (!template) return;
       const applied = await communityAction('linkki_community_apply', { p_template_id: template.id });
       if (!applied) return;
+      // Cria uma página nova; a página anterior continua intacta.
+      syncCurrentPageSnapshot();
       const appearance = JSON.parse(JSON.stringify(template.appearance));
-      state.profile.customColors = appearance.customColors;
-      state.profile.backgroundMode = appearance.backgroundMode || 'solid';
-      state.profile.gradientSecondColor = appearance.gradientSecondColor || '#F2F5DF';
-      state.profile.backgroundImage = linkkiSafeBackgroundImage(appearance.backgroundImage);
-      state.profile.stickers = linkkiNormalizeStickers(Array.isArray(appearance.stickers) ? appearance.stickers : appearance.previewSnapshot?.stickers);
-      state.profile.elementAnimation = appearance.elementAnimation || 'none';
-      state.profile.buttonStyle = appearance.buttonStyle;
-      state.profile.buttonBorder = appearance.buttonBorder;
-      state.profile.buttonShadow = appearance.buttonShadow;
-      state.profile.titleFont = appearance.titleFont;
-      state.profile.bodyFont = appearance.bodyFont;
-      state.profile.background = 'custom';
-      state.activeSection = 'editor';
-      state.activeTab = 'appearance';
+      const previous = state.userPages.find(p => p.active) || state.userPages.find(p => p.id === state.currentPageId);
+      const pageId = `page-${crypto.randomUUID()}`;
+      const newPage = {
+        id: pageId, title: `${template.title || 'Modelo'} (cópia)`.slice(0,80),
+        profileName: previous?.profileName || state.profile.name,
+        username: previous?.username || state.profile.username,
+        active: false,
+        appearance,
+        profileAvatar: previous?.profileAvatar ?? state.profile.avatar,
+        avatarLayout: previous?.avatarLayout || state.profile.avatarLayout,
+        bannerImage: previous?.bannerImage || state.profile.bannerImage,
+        previewLinks: previous?.previewLinks || state.links.filter(l => l.visible).map(l => ({title:l.title})),
+      };
+      state.userPages.push(newPage);
+      state.currentPageId = pageId;
+      Object.assign(state.profile, appearance);
+      state.profile.stickers = linkkiNormalizeStickers(appearance.stickers || appearance.previewSnapshot?.stickers);
+      state.profile.name = newPage.profileName;
+      state.profile.username = newPage.username;
+      state.profile.avatar = newPage.profileAvatar;
+      state.profile.avatarLayout = newPage.avatarLayout;
+      state.profile.bannerImage = newPage.bannerImage;
+      state.profile.published = false;
+      state.activeSection = 'editor'; state.activeTab = 'appearance';
       saveState(); render();
-      showToast('Modelo aplicado. Seus links e informações foram preservados.');
+      showToast('Modelo aplicado a uma nova página. A página anterior foi preservada.');
     });
   });
   results.querySelectorAll('[data-action="unpublish-template"]').forEach(button => {
@@ -2175,7 +2187,7 @@ function accountPanel() {
   const category = accountCategories.find(([id]) => id === state.account.category)?.[2] || "Não informado";
   return `
     <div class="panel-header section-panel-header">
-      <div><span class="section-eyebrow">CONTA</span><h1>Minha conta</h1><p>Seus dados de acesso e informações pessoais.</p></div>
+      <div><h1>Minha conta</h1></div>
     </div>
     <div class="account-overview">
       <section class="account-identity-card">
@@ -2183,18 +2195,24 @@ function accountPanel() {
         <h2>${escapeHtml(accountName)}</h2>
         <p>@${escapeHtml(state.account.username || state.profile.username)}</p>
         <span class="verified-pill">✓ E-mail verificado</span>
-        <button class="button button--primary" data-app-section="editor">Editar minha página</button>
+        <button class="button button--primary" data-app-section="pages">Minhas páginas</button>
         <button type="button" class="button" data-action="logout" style="margin-top:10px">Sair da conta</button>
       </section>
       <div class="account-details-column">
         <section class="card account-card">
-          <div class="card-title"><h2>Informações pessoais</h2><span class="base-badge">BASE</span></div>
+          <div class="card-title"><h2>Informações pessoais</h2></div>
           <div class="account-detail-list">
             <div><span>Nome completo</span><strong>${escapeHtml(accountName)}</strong></div>
             <div><span>E-mail</span><strong>${escapeHtml(state.account.email || "E-mail ainda não informado")}</strong></div>
             <div><span>Nome de usuário</span><strong>@${escapeHtml(state.account.username || state.profile.username)}</strong></div>
             <div><span>Tipo de perfil</span><strong>${escapeHtml(category)}</strong></div>
           </div>
+          <form data-form="change-account-details" class="linkki-account-edit-form">
+            <label class="field"><span class="field-label">Alterar nome completo</span><input class="input" name="fullName" maxlength="100" required value="${escapeHtml(accountName)}" /></label>
+            <label class="field"><span class="field-label">Alterar tipo de perfil</span><select class="input" name="category" required>${accountCategories.map(([id,,label]) => `<option value="${escapeHtml(id)}" ${state.account.category === id ? 'selected' : ''}>${escapeHtml(label)}</option>`).join('')}</select></label>
+            <button class="button button--primary button--small" type="submit">Salvar informações</button>
+            <small class="field-help" data-account-details-status role="status"></small>
+          </form>
           <form data-form="change-username" style="margin-top:22px;display:grid;gap:10px">
             <label class="field"><span class="field-label">Alterar nome de usuário</span>
               <input class="input" name="newUsername" autocomplete="off" spellcheck="false" maxlength="30" value="${escapeHtml(state.account.username || state.profile.username)}" />
@@ -2262,7 +2280,7 @@ function linkkiSupportSearch(query) {
 function supportPanel() {
   return `
     <div class="panel-header section-panel-header">
-      <div><span class="section-eyebrow">AJUDA</span><h1>Suporte</h1><p>Encontre respostas e os caminhos para falar com a Linkki.</p></div>
+      <div><h1>Suporte</h1><p>Encontre respostas e os caminhos para falar com a Linkki.</p></div>
     </div>
     <section class="support-hero">
       <span>?</span><div><h2>Como podemos ajudar?</h2><p>Pesquise sua dúvida para encontrar uma resposta.</p></div>
@@ -2297,7 +2315,7 @@ function ticketPanel() {
           <label>E-mail para resposta<input name="email" type="email" maxlength="180" autocomplete="email" required placeholder="voce@exemplo.com" /></label>
         </div>
         <div class="support-ticket-row">
-          <label>Categoria<select name="category" required><option value="">Selecione</option><option>Conta e acesso</option><option>Páginas e publicação</option><option>Personalização e adesivos</option><option>Modelos e comunidade</option><option>Erro ou problema técnico</option><option>Outro assunto</option></select></label>
+          <label>Categoria<select name="category" class="linkki-ticket-category" required><option value="">Selecione</option><option>Conta e acesso</option><option>Páginas e publicação</option><option>Personalização e adesivos</option><option>Modelos e comunidade</option><option>Erro ou problema técnico</option><option>Outro assunto</option></select></label>
           <label>Assunto<input name="subject" type="text" maxlength="140" required placeholder="Resuma sua dúvida" /></label>
         </div>
         <label>Descreva sua solicitação<textarea name="message" rows="5" minlength="10" maxlength="5000" required placeholder="Conte o que aconteceu e como podemos ajudar..."></textarea></label>
@@ -2332,9 +2350,8 @@ function editorPage() {
           <button class="topbar-logo" data-app-section="editor" aria-label="Abrir editor">${brand()}</button>
         </div>
         <div class="topbar-actions">
-          ${isEditor ? linkkiHistoryControls() : ""}
           <span class="save-status">Salvo neste navegador</span>
-          <a class="button button--ghost button--small" href="#public">Prévia da página</a>
+          ${isEditor ? `<a class="button button--ghost button--small" href="#public">Prévia da página</a>` : ""}
           <button class="button ${state.profile.published ? "button--accent" : "button--primary"} button--small" data-action="publish">
             ${state.profile.published ? (hasUnpublishedChanges() ? "Publicar alterações" : "Publicado") : "Publicar"}
           </button>
@@ -2346,7 +2363,7 @@ function editorPage() {
         <section class="editor-panel ${isEditor ? "" : "editor-panel--section"} ${state.activeSection === "community" && !isEditor ? "editor-panel--community" : ""}">${panel()}</section>
         ${isEditor ? `<aside class="preview-panel" aria-label="Prévia da sua página">
           <div class="preview-wrap">
-            <div class="preview-label"><span>PRÉVIA AO VIVO</span><a href="#public">Abrir ↗</a></div>
+            <div class="preview-label"><span></span><span class="preview-history-controls">${linkkiHistoryControls()}</span></div>
             <div class="preview-phone"><div class="preview-screen">${publicProfileMarkup(undefined, true)}</div></div>
           </div>
         </aside>` : ""}
@@ -2599,6 +2616,27 @@ function bindEvents() {
     const error = form?.querySelector(".form-error");
     if (error) error.textContent = message;
   };
+
+  document.querySelector('[data-form="change-account-details"]')?.addEventListener('submit', async event => {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const fullName = String(new FormData(form).get('fullName') || '').trim().replace(/\s+/g,' ');
+    const category = String(new FormData(form).get('category') || '');
+    const status = form.querySelector('[data-account-details-status]');
+    if (!fullName || fullName.length > 100 || !accountCategories.some(([id]) => id === category)) {
+      status.textContent = 'Informe um nome e um tipo de perfil válidos.'; return;
+    }
+    if (!authClient || !cloudReady || !cloudUserId) { status.textContent = 'Aguarde a conexão com sua conta.'; return; }
+    const [firstName, ...remaining] = fullName.split(' ');
+    const lastName = remaining.join(' ');
+    const submit = form.querySelector('[type="submit"]'); submit.disabled = true;
+    try {
+      const { error } = await authClient.auth.updateUser({ data: { first_name:firstName, last_name:lastName, category } });
+      if (error) throw error;
+      state.account.firstName = firstName; state.account.lastName = lastName; state.account.category = category;
+      saveState(); render(); showToast('Informações da conta atualizadas.');
+    } catch(error) { status.textContent = 'Não foi possível salvar. Tente novamente.'; submit.disabled = false; }
+  });
 
   const nicknameForm = document.querySelector('[data-form="change-username"]');
   const nicknameInput = nicknameForm?.querySelector('[name="newUsername"]');
@@ -3695,8 +3733,13 @@ function linkkiPageModal({ title, message = '', value, danger = false, confirmLa
     card.querySelector('[data-action="move-up"]')?.addEventListener("click", () => moveLink(id, -1));
     card.querySelector('[data-action="move-down"]')?.addEventListener("click", () => moveLink(id, 1));
 
-    card.addEventListener("dragstart", () => card.classList.add("is-dragging"));
-    card.addEventListener("dragend", () => card.classList.remove("is-dragging"));
+    const handle = card.querySelector('.drag-handle');
+    handle?.addEventListener('dragstart', event => {
+      card.classList.add('is-dragging');
+      event.dataTransfer?.setData('text/plain', id);
+      if (event.dataTransfer) event.dataTransfer.effectAllowed = 'move';
+    });
+    handle?.addEventListener('dragend', () => card.classList.remove('is-dragging'));
     card.addEventListener("dragover", (event) => event.preventDefault());
     card.addEventListener("drop", (event) => {
       event.preventDefault();
