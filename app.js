@@ -34,6 +34,60 @@ window.linkkiTurnstileReady = initializeTurnstile;
 const authClient = (window.supabase && window.LINKKI_SUPABASE_URL && window.LINKKI_SUPABASE_ANON_KEY && !window.LINKKI_SUPABASE_URL.includes('COLE_'))
   ? window.supabase.createClient(window.LINKKI_SUPABASE_URL, window.LINKKI_SUPABASE_ANON_KEY)
   : null;
+
+// Indicador global de carregamento: aparece apenas enquanto há requisições reais.
+// Requisições em paralelo mantêm o indicador até a última terminar.
+const linkkiNativeFetch = window.fetch.bind(window);
+let linkkiPendingRequests = 0;
+let linkkiLoadingRevealTimer = null;
+function linkkiLoadingBackground() {
+  try {
+    const p = typeof state !== 'undefined' ? state.profile : null;
+    if (p && typeof linkkiBackgroundCss === 'function') {
+      const bg = linkkiBackgroundCss(p);
+      if (typeof bg === 'string' && bg.length < 600 && !/[;{}]/.test(bg)) return bg;
+    }
+  } catch (_) {}
+  return '#F7F8F3';
+}
+function linkkiGlobalLoadingElement() {
+  let el = document.getElementById('linkki-global-loading');
+  if (!el && document.body) {
+    el = document.createElement('div');
+    el.id = 'linkki-global-loading';
+    el.className = 'linkki-global-loading';
+    el.setAttribute('role','status');
+    el.setAttribute('aria-label','Carregando');
+    el.innerHTML = '<video src="./linkki-loading.webm" autoplay muted loop playsinline aria-hidden="true"></video><span class="linkki-loading-fallback" aria-hidden="true">✳</span>';
+    el.querySelector('video')?.addEventListener('error', () => el.classList.add('linkki-loading-video-failed'));
+    document.body.appendChild(el);
+  }
+  return el;
+}
+function linkkiUpdateLoading() {
+  if (linkkiPendingRequests > 0) {
+    if (linkkiLoadingRevealTimer) return;
+    linkkiLoadingRevealTimer = setTimeout(() => {
+      linkkiLoadingRevealTimer = null;
+      if (linkkiPendingRequests <= 0) return;
+      const el = linkkiGlobalLoadingElement();
+      if (!el) return;
+      el.style.background = linkkiLoadingBackground();
+      el.classList.add('is-visible');
+    }, 160);
+  } else {
+    clearTimeout(linkkiLoadingRevealTimer);
+    linkkiLoadingRevealTimer = null;
+    document.getElementById('linkki-global-loading')?.classList.remove('is-visible');
+  }
+}
+window.fetch = async function linkkiTrackedFetch(...args) {
+  linkkiPendingRequests += 1;
+  linkkiUpdateLoading();
+  try { return await linkkiNativeFetch(...args); }
+  finally { linkkiPendingRequests = Math.max(0, linkkiPendingRequests - 1); linkkiUpdateLoading(); }
+};
+
 function requireAuthClient(form) {
   if (authClient) return true;
   const error = form?.querySelector('.form-error');
@@ -1030,12 +1084,8 @@ function authShell(content, title, description) {
       <section class="auth-layout">
         <aside class="auth-aside">
           <img class="auth-kanji auth-kanji-image" src="./logo-linkki.png" alt="" aria-hidden="true" />
-          <p class="eyebrow"><span class="eyebrow-dot"></span> Comece pela raiz</p>
           <h1>${title}</h1>
           <p>${description}</p>
-          <div class="auth-promise">
-            <span>✓</span> Sua página só é criada depois da verificação da conta.
-          </div>
         </aside>
         <section class="auth-card">${content}</section>
       </section>
@@ -2201,25 +2251,12 @@ function accountPanel() {
       <div class="account-details-column">
         <section class="card account-card">
           <div class="card-title"><h2>Informações pessoais</h2></div>
-          <div class="account-detail-list">
-            <div><span>Nome completo</span><strong>${escapeHtml(accountName)}</strong></div>
-            <div><span>E-mail</span><strong>${escapeHtml(state.account.email || "E-mail ainda não informado")}</strong></div>
-            <div><span>Nome de usuário</span><strong>@${escapeHtml(state.account.username || state.profile.username)}</strong></div>
-            <div><span>Tipo de perfil</span><strong>${escapeHtml(category)}</strong></div>
+          <div class="account-detail-list linkki-inline-account">
+            <div class="linkki-account-line"><span>Nome completo</span><div class="linkki-account-value"><button type="button" class="linkki-inline-edit" data-account-edit="name" aria-label="Editar nome completo">${escapeHtml(accountName)} <span aria-hidden="true">✎</span></button><form data-form="change-account-details" class="linkki-inline-form" hidden><input class="input" name="fullName" maxlength="100" required value="${escapeHtml(accountName)}" aria-label="Nome completo"><input type="hidden" name="category" value="${escapeHtml(state.account.category || 'outro')}"><button class="linkki-inline-save" type="submit">Salvar</button><button type="button" class="linkki-inline-cancel" data-account-cancel="name">Cancelar</button><small data-account-details-status role="status"></small></form></div></div>
+            <div class="linkki-account-line"><span>E-mail</span><strong>${escapeHtml(state.account.email || "E-mail ainda não informado")}</strong></div>
+            <div class="linkki-account-line"><span>Nome de usuário</span><div class="linkki-account-value"><button type="button" class="linkki-inline-edit" data-account-edit="username" aria-label="Editar nome de usuário">@${escapeHtml(state.account.username || state.profile.username)} <span aria-hidden="true">✎</span></button><form data-form="change-username" class="linkki-inline-form" hidden><input class="input" name="newUsername" autocomplete="off" spellcheck="false" maxlength="30" value="${escapeHtml(state.account.username || state.profile.username)}" aria-label="Nome de usuário"><button class="linkki-inline-save" type="submit">Salvar</button><button type="button" class="linkki-inline-cancel" data-account-cancel="username">Cancelar</button><small class="field-help" data-account-username-status role="status" aria-live="polite"></small></form></div></div>
+            <div class="linkki-account-line"><span>Tipo de perfil</span><div class="linkki-account-value"><button type="button" class="linkki-inline-edit" data-account-edit="category" aria-label="Alterar tipo de perfil">${escapeHtml(category)} <span aria-hidden="true">⌄</span></button><div class="linkki-category-popover" data-category-popover hidden role="group" aria-label="Escolha o tipo de perfil">${accountCategories.map(([id,icon,label]) => `<button type="button" class="linkki-category-choice ${state.account.category === id ? 'is-current' : ''}" data-account-category="${escapeHtml(id)}"><span>${escapeHtml(icon)}</span>${escapeHtml(label)}</button>`).join('')}<small data-category-status role="status"></small></div></div></div>
           </div>
-          <form data-form="change-account-details" class="linkki-account-edit-form">
-            <label class="field"><span class="field-label">Alterar nome completo</span><input class="input" name="fullName" maxlength="100" required value="${escapeHtml(accountName)}" /></label>
-            <label class="field"><span class="field-label">Alterar tipo de perfil</span><select class="input" name="category" required>${accountCategories.map(([id,,label]) => `<option value="${escapeHtml(id)}" ${state.account.category === id ? 'selected' : ''}>${escapeHtml(label)}</option>`).join('')}</select></label>
-            <button class="button button--primary button--small" type="submit">Salvar informações</button>
-            <small class="field-help" data-account-details-status role="status"></small>
-          </form>
-          <form data-form="change-username" style="margin-top:22px;display:grid;gap:10px">
-            <label class="field"><span class="field-label">Alterar nome de usuário</span>
-              <input class="input" name="newUsername" autocomplete="off" spellcheck="false" maxlength="30" value="${escapeHtml(state.account.username || state.profile.username)}" />
-            </label>
-            <small class="field-help" data-account-username-status role="status" aria-live="polite">Seu link público também será atualizado.</small>
-            <button class="button button--primary button--small" type="submit" style="justify-self:start">Salvar novo nome de usuário</button>
-          </form>
         </section>
         <section class="card account-card">
           <div class="card-title"><h2>Segurança</h2></div>
@@ -2617,6 +2654,29 @@ function bindEvents() {
     if (error) error.textContent = message;
   };
 
+  document.querySelectorAll('[data-account-edit]').forEach(button => button.addEventListener('click', () => {
+    const type = button.dataset.accountEdit;
+    const parent = button.closest('.linkki-account-value');
+    const panel = type === 'category' ? parent?.querySelector('[data-category-popover]') : parent?.querySelector('form');
+    if (!panel) return;
+    document.querySelectorAll('.linkki-inline-form, [data-category-popover]').forEach(other => { if (other !== panel) other.hidden = true; });
+    panel.hidden = !panel.hidden;
+    if (!panel.hidden) panel.querySelector('input')?.focus();
+  }));
+  document.querySelectorAll('[data-account-cancel]').forEach(button => button.addEventListener('click', () => {
+    button.closest('form').hidden = true;
+  }));
+  document.querySelectorAll('[data-account-category]').forEach(button => button.addEventListener('click', async () => {
+    const category = button.dataset.accountCategory;
+    const status = button.closest('[data-category-popover]').querySelector('[data-category-status]');
+    if (!authClient || !cloudReady || !cloudUserId) { status.textContent = 'Aguarde a conexão com sua conta.'; return; }
+    button.disabled = true;
+    try {
+      const { error } = await authClient.auth.updateUser({ data: { category } });
+      if (error) throw error;
+      state.account.category = category; saveState(); render(); showToast('Tipo de perfil atualizado.');
+    } catch (error) { status.textContent = 'Não foi possível salvar. Tente novamente.'; button.disabled = false; }
+  }));
   document.querySelector('[data-form="change-account-details"]')?.addEventListener('submit', async event => {
     event.preventDefault();
     const form = event.currentTarget;
