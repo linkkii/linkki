@@ -1013,7 +1013,7 @@ function landingPage() {
           </div>
           <div class="landing-feature__media">
             <video class="landing-feature__video" autoplay muted loop playsinline preload="metadata" aria-label="Animação das métricas e análises de cliques">
-              <source src="./analises.mp4" type="video/mp4" />
+              <source src="./analises.webm" type="video/webm" />
             </video>
           </div>
         </div>
