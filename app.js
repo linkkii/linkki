@@ -2275,6 +2275,24 @@ function supportPanel() {
       <details><summary>Aplicar um modelo remove meus links?</summary><p>Não. O modelo altera apenas a aparência; nome, bio e links são preservados.</p></details>
       <details><summary>O que acontece se eu remover um modelo da comunidade?</summary><p>A publicação pública é removida, mas sua página original continua salva.</p></details>
     </section>
+    <section class="card support-ticket">
+      <div class="card-title"><h2>Enviar ticket</h2></div>
+      <p class="support-ticket-intro">Não encontrou sua resposta? Envie uma solicitação para nossa equipe.</p>
+      <form data-support-ticket>
+        <div class="support-ticket-row">
+          <label>Seu nome<input name="name" type="text" maxlength="100" autocomplete="name" required placeholder="Como podemos chamar você?" /></label>
+          <label>E-mail para resposta<input name="email" type="email" maxlength="180" autocomplete="email" required placeholder="voce@exemplo.com" /></label>
+        </div>
+        <div class="support-ticket-row">
+          <label>Categoria<select name="category" required><option value="">Selecione</option><option>Conta e acesso</option><option>Páginas e publicação</option><option>Personalização e adesivos</option><option>Modelos e comunidade</option><option>Erro ou problema técnico</option><option>Outro assunto</option></select></label>
+          <label>Assunto<input name="subject" type="text" maxlength="140" required placeholder="Resuma sua dúvida" /></label>
+        </div>
+        <label>Descreva sua solicitação<textarea name="message" rows="5" minlength="10" maxlength="5000" required placeholder="Conte o que aconteceu e como podemos ajudar..."></textarea></label>
+        <input class="support-ticket-honeypot" name="_honey" type="text" tabindex="-1" autocomplete="off" aria-hidden="true" />
+        <div class="support-ticket-footer"><span>Responderemos pelo e-mail informado.</span><button type="submit" class="primary-button" data-ticket-submit>Enviar ticket</button></div>
+        <p data-ticket-status role="status" aria-live="polite"></p>
+      </form>
+    </section>
   `;
 }
 
@@ -2515,6 +2533,48 @@ function moveLink(id, direction) {
 let menuKeydownController = new AbortController();
 function bindEvents() {
   document.querySelector("[data-support-search]")?.addEventListener("input", event => linkkiSupportSearch(event.target.value));
+  document.querySelector("[data-support-ticket]")?.addEventListener("submit", async event => {
+    event.preventDefault();
+    const form = event.currentTarget;
+    if (!form.reportValidity()) return;
+    const status = form.querySelector("[data-ticket-status]");
+    const button = form.querySelector("[data-ticket-submit]");
+    const data = new FormData(form);
+    if (String(data.get("_honey") || "").trim()) return;
+    const name = String(data.get("name") || "").trim();
+    const email = String(data.get("email") || "").trim();
+    const category = String(data.get("category") || "").trim();
+    const subject = String(data.get("subject") || "").trim();
+    const message = String(data.get("message") || "").trim();
+    if (!name || !email || !category || !subject || message.length < 10) return;
+    button.disabled = true;
+    status.textContent = "Enviando solicitação...";
+    try {
+      const payload = new FormData();
+      payload.append("name", name);
+      payload.append("email", email);
+      payload.append("category", category);
+      payload.append("subject", `[Linkki] ${category} — ${subject}`);
+      payload.append("message", message);
+      payload.append("_replyto", email);
+      payload.append("_captcha", "true");
+      payload.append("_template", "table");
+      const response = await fetch("https://formsubmit.co/ajax/linkkicontato@gmail.com", {
+        method: "POST", body: payload, headers: { Accept: "application/json" }
+      });
+      const result = await response.json().catch(() => null);
+      if (!response.ok || !result || result.success === false || result.success === "false") {
+        throw new Error("Falha no envio");
+      }
+      form.reset();
+      status.textContent = "Solicitação enviada ao serviço de atendimento. Se for o primeiro envio, o destinatário precisa ativar o recebimento pelo e-mail de confirmação.";
+    } catch (error) {
+      status.textContent = "Não foi possível enviar agora. Tente novamente em instantes.";
+    } finally {
+      button.disabled = false;
+    }
+  });
+
   document.querySelectorAll('[data-linkki-history]').forEach(button => {
     button.addEventListener('click', () => linkkiHistoryAction(button.dataset.linkkiHistory));
   });
