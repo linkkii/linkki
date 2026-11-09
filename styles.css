@@ -4283,3 +4283,6 @@ button.template-stat {
 @media (max-width: 760px) {
   .hero-visual--animated .hero-intro-video { width: 100%; max-width: 100%; }
 }
+
+/* Personalização: fundo branco contínuo com as demais seções. */
+.landing-feature--stickers { background: #ffffff; }
