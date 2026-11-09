@@ -4034,3 +4034,11 @@ button.template-stat {
 @media (prefers-reduced-motion: reduce) {
   .support-faq details[open] > p { animation: none; }
 }
+
+/* Suporte: clicar nas perguntas não seleciona o texto. */
+.support-faq details > summary,
+.support-faq details > summary * {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
