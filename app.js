@@ -2340,7 +2340,7 @@ function supportPanel() {
 function ticketPanel() {
   return `
     <div class="panel-header section-panel-header">
-      <div><span class="section-eyebrow">AJUDA</span><h1>Enviar ticket</h1><p>Conte para nossa equipe como podemos ajudar.</p></div>
+      <div><h1>Enviar ticket</h1></div>
       <button type="button" class="button button--ghost" data-app-section="support">← Voltar ao suporte</button>
     </div>
     <section class="card support-ticket">
