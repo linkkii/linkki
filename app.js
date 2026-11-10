@@ -336,7 +336,9 @@ function linkkiBindStickerEditor() {
     }
     const canvas = preview.querySelector('.profile-canvas');
     if (!canvas) return;
-    const rect = canvas.getBoundingClientRect();
+    const layer = canvas.querySelector('.linkki-sticker-layer');
+    if (!layer) return;
+    const rect = layer.getBoundingClientRect();
     const base = {...sticker};
     const angle = (e) => Math.atan2(e.clientY - (rect.top + rect.height * base.y/100), e.clientX - (rect.left + rect.width * base.x/100)) * 180 / Math.PI;
     const startRotation = angle(event);
