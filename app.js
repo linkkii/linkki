@@ -3448,10 +3448,10 @@ function linkkiPageModal({ title, message = '', value, danger = false, confirmLa
       };
       const result = await communityAction('linkki_community_publish', {
         p_source_page_id: page.id, p_title: page.title, p_author: author,
-        p_category: category, p_appearance: {
-          ...appearanceSnapshot(previewAppearance),
-          previewSnapshot
-        }
+        p_category: category,
+        // A RPC recebe somente a aparência. Foto, links e prévia são
+        // persistidos separadamente em linkki_community_preview_metadata.
+        p_appearance: appearanceSnapshot(previewAppearance)
       });
       if (result) {
         const saved = state.communityTemplates.find(t =>
