@@ -301,6 +301,11 @@ function linkkiBindStickerEditor() {
     const counter = document.querySelector('.linkki-sticker-counter');
     if (counter) counter.textContent = `${state.profile.stickers.length} na página`;
     syncLivePreview();
+    if (window.matchMedia('(max-width:820px)').matches && linkkiMobileEditorSheet) {
+      linkkiMobileEditorSheet = false;
+      linkkiMobileSheetScroll = 0;
+      render();
+    }
   }, {signal});
   // Um clique fora do adesivo encerra a seleção, inclusive fora do celular.
   document.addEventListener('pointerdown', event => {
@@ -322,6 +327,7 @@ function linkkiBindStickerEditor() {
     const sticker = state.profile.stickers?.find(item => item.id === id);
     if (!sticker) return;
     event.preventDefault();
+    event.stopPropagation();
     linkkiSelectedStickerId = id;
     linkkiRefreshStickerSelection(preview);
     const action = event.target.closest('[data-sticker-action]')?.dataset.stickerAction || 'move';
@@ -2393,6 +2399,43 @@ function ticketPanel() {
 }
 
 let linkkiMobileEditorSheet = false;
+let linkkiMobileEditorTool = 'content';
+let linkkiMobileSheetScroll = 0;
+const linkkiMobileToolInfo = {
+  content: ['Conteúdo','✎','content'], colors: ['Cores','◉','appearance'],
+  fonts: ['Fontes','Aa','appearance'], stickers: ['Stickers','✦','appearance'],
+  background: ['Fundo','▧','appearance'], animation: ['Animação','◌','appearance'],
+  buttons: ['Botões','▢','appearance'], photo: ['Foto','◉','appearance'],
+  analytics: ['Analytics','↗','analytics']
+};
+function linkkiPrepareMobileToolPanel() {
+  const workspace = document.querySelector('.workspace--mobile-editor');
+  if (!workspace) return;
+  const panel = workspace.querySelector(':scope > .editor-panel');
+  if (!panel) return;
+  panel.dataset.mobileTool = linkkiMobileEditorTool;
+  const appearance = state.activeTab === 'appearance';
+  const groups = {
+    'Layout da foto de perfil':'photo', 'Cores':'colors', 'Imagem de fundo':'background',
+    'Adesivos':'stickers', 'Foto de perfil':'photo', 'Animação dos elementos':'animation',
+    'Botões':'buttons', 'Tipografia':'fonts'
+  };
+  if (appearance) {
+    panel.querySelectorAll(':scope > .card').forEach(card => {
+      const heading = card.querySelector('.card-title h2')?.textContent?.trim();
+      const group = groups[heading];
+      card.hidden = Boolean(group && group !== linkkiMobileEditorTool);
+    });
+    const header = panel.querySelector(':scope > .panel-header');
+    if (header) header.hidden = true;
+  }
+  const sheet = workspace.querySelector('.mobile-editor-sheet-header strong');
+  if (sheet) sheet.textContent = linkkiMobileToolInfo[linkkiMobileEditorTool]?.[0] || 'Editar';
+  // Mantém a posição da folha ao atualizar um campo, sem salto para o início.
+  if (linkkiMobileEditorSheet) panel.scrollTop = linkkiMobileSheetScroll;
+  panel.addEventListener('scroll', () => { linkkiMobileSheetScroll = panel.scrollTop; }, {passive:true});
+}
+
 
 function editorPage() {
   const panels = {
@@ -2430,12 +2473,10 @@ function editorPage() {
       <div class="workspace ${isEditor ? "workspace--mobile-editor" : "workspace--section"} ${isEditor && linkkiMobileEditorSheet ? "mobile-sheet-open" : ""}">
         ${isEditor ? sidebar() : ""}
         ${isEditor ? `<nav class="mobile-editor-dock" aria-label="Ferramentas de edição">
-          <button type="button" data-mobile-editor-tool="content" class="${state.activeTab === 'content' && linkkiMobileEditorSheet ? 'is-active' : ''}"><span>✎</span>Conteúdo</button>
-          <button type="button" data-mobile-editor-tool="appearance" class="${state.activeTab === 'appearance' && linkkiMobileEditorSheet ? 'is-active' : ''}"><span>◐</span>Aparência</button>
-          <button type="button" data-mobile-editor-tool="analytics" class="${state.activeTab === 'analytics' && linkkiMobileEditorSheet ? 'is-active' : ''}"><span>↗</span>Analytics</button>
+          ${Object.entries(linkkiMobileToolInfo).map(([id,info]) => `<button type="button" data-mobile-editor-tool="${id}" class="${linkkiMobileEditorTool === id && linkkiMobileEditorSheet ? 'is-active' : ''}"><span>${info[1]}</span>${info[0]}</button>`).join('')}
         </nav>
         <button type="button" class="mobile-editor-sheet-backdrop" data-mobile-editor-close aria-label="Fechar ferramentas"></button>
-        <div class="mobile-editor-sheet-header"><strong>${state.activeTab === 'appearance' ? 'Aparência' : state.activeTab === 'analytics' ? 'Analytics' : 'Conteúdo'}</strong><button type="button" data-mobile-editor-close aria-label="Fechar painel">✕</button></div>` : ""}
+        <div class="mobile-editor-sheet-header"><strong>${linkkiMobileToolInfo[linkkiMobileEditorTool]?.[0] || 'Editar'}</strong><button type="button" data-mobile-editor-close aria-label="Fechar painel">✕</button></div>` : ""}
         <section class="editor-panel ${isEditor ? "" : "editor-panel--section"} ${state.activeSection === "community" && !isEditor ? "editor-panel--community" : ""}">${panel()}</section>
         ${isEditor ? `<aside class="preview-panel" aria-label="Prévia da sua página">
           <div class="preview-wrap">
@@ -2589,6 +2630,7 @@ function render() {
     }
   }
   bindEvents();
+  linkkiPrepareMobileToolPanel();
   initializeTurnstile();
   if (route === "home") linkkiBindLandingVideos();
   else linkkiLandingVideoObserver?.disconnect();
@@ -3419,10 +3461,12 @@ function linkkiPageModal({ title, message = '', value, danger = false, confirmLa
   document.querySelectorAll('[data-mobile-editor-tool]').forEach(button => {
     button.addEventListener('click', () => {
       const selected = button.dataset.mobileEditorTool;
-      if (linkkiMobileEditorSheet && state.activeTab === selected) {
+      if (linkkiMobileEditorSheet && linkkiMobileEditorTool === selected) {
         linkkiMobileEditorSheet = false;
       } else {
-        state.activeTab = selected;
+        linkkiMobileEditorTool = selected;
+        state.activeTab = linkkiMobileToolInfo[selected][2];
+        linkkiMobileSheetScroll = 0;
         linkkiMobileEditorSheet = true;
       }
       render();

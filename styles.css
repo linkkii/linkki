@@ -4353,3 +4353,25 @@ button.template-stat {
   @keyframes linkkiMobileSheetUp{from{opacity:.6;transform:translateY(35px)}to{opacity:1;transform:translateY(0)}}
 }
 @media(prefers-reduced-motion:reduce){.workspace--mobile-editor>.editor-panel{animation:none}}
+
+/* Editor mobile v2: ferramentas independentes, sem salto de painel */
+@media(max-width:820px){
+  .workspace--mobile-editor>.preview-panel{display:block;min-height:0;padding:14px 10px 120px;overflow:visible}
+  .workspace--mobile-editor .preview-wrap{width:min(100%,430px);max-width:430px;margin:0 auto}
+  .workspace--mobile-editor .preview-phone{overflow:visible}
+  .workspace--mobile-editor .preview-screen{height:auto!important;min-height:0!important;max-height:none!important;overflow:visible!important;border-radius:22px}
+  .workspace--mobile-editor .preview-screen .profile-canvas{min-height:680px}
+  .workspace--mobile-editor .preview-screen .linkki-sticker-layer--editing{pointer-events:none}
+  .workspace--mobile-editor .preview-screen .linkki-sticker-layer--editing .linkki-sticker{pointer-events:auto;touch-action:none;user-select:none;-webkit-user-select:none}
+  .workspace--mobile-editor .preview-screen .linkki-sticker-handle{width:18px!important;height:18px!important;touch-action:none}
+  .workspace--mobile-editor .preview-screen .linkki-sticker-tool{width:38px!important;height:38px!important;touch-action:none}
+  .workspace--mobile-editor>.editor-panel{max-height:min(58dvh,560px);padding:20px 16px calc(92px + env(safe-area-inset-bottom));animation:none!important;scroll-behavior:auto}
+  .workspace--mobile-editor .mobile-editor-sheet-header{position:fixed;bottom:min(58dvh,560px);transform:translateY(100%);height:52px}
+  .workspace--mobile-editor .mobile-editor-dock{justify-content:flex-start;overflow-x:auto;overscroll-behavior-x:contain;scrollbar-width:none;gap:4px;padding:8px 8px calc(9px + env(safe-area-inset-bottom));-webkit-overflow-scrolling:touch}
+  .workspace--mobile-editor .mobile-editor-dock::-webkit-scrollbar{display:none}
+  .workspace--mobile-editor .mobile-editor-dock button{flex:0 0 68px;min-width:68px;font-size:10px;padding:8px 2px}
+  .workspace--mobile-editor .mobile-editor-dock button span{font-size:21px}
+  .workspace--mobile-editor .editor-panel>.card[hidden],.workspace--mobile-editor .editor-panel>.panel-header[hidden]{display:none!important}
+  .workspace--mobile-editor .editor-panel>.card{margin-top:0}
+  .workspace--mobile-editor .preview-screen [data-linkki-sticker]{-webkit-touch-callout:none}
+}
