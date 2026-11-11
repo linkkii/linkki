@@ -2392,6 +2392,8 @@ function ticketPanel() {
   `;
 }
 
+let linkkiMobileEditorSheet = false;
+
 function editorPage() {
   const panels = {
     content: contentPanel,
@@ -2406,6 +2408,7 @@ function editorPage() {
     ticket: ticketPanel,
   };
   const isEditor = state.activeSection === "editor";
+  if (!isEditor) linkkiMobileEditorSheet = false;
   const panel = isEditor ? (panels[state.activeTab] || contentPanel) : (sections[state.activeSection] || accountPanel);
   return `
     <main class="app-shell">
@@ -2424,8 +2427,15 @@ function editorPage() {
         </div>
       </header>
       ${appMenuMarkup()}
-      <div class="workspace ${isEditor ? "" : "workspace--section"}">
+      <div class="workspace ${isEditor ? "workspace--mobile-editor" : "workspace--section"} ${isEditor && linkkiMobileEditorSheet ? "mobile-sheet-open" : ""}">
         ${isEditor ? sidebar() : ""}
+        ${isEditor ? `<nav class="mobile-editor-dock" aria-label="Ferramentas de edição">
+          <button type="button" data-mobile-editor-tool="content" class="${state.activeTab === 'content' && linkkiMobileEditorSheet ? 'is-active' : ''}"><span>✎</span>Conteúdo</button>
+          <button type="button" data-mobile-editor-tool="appearance" class="${state.activeTab === 'appearance' && linkkiMobileEditorSheet ? 'is-active' : ''}"><span>◐</span>Aparência</button>
+          <button type="button" data-mobile-editor-tool="analytics" class="${state.activeTab === 'analytics' && linkkiMobileEditorSheet ? 'is-active' : ''}"><span>↗</span>Analytics</button>
+        </nav>
+        <button type="button" class="mobile-editor-sheet-backdrop" data-mobile-editor-close aria-label="Fechar ferramentas"></button>
+        <div class="mobile-editor-sheet-header"><strong>${state.activeTab === 'appearance' ? 'Aparência' : state.activeTab === 'analytics' ? 'Analytics' : 'Conteúdo'}</strong><button type="button" data-mobile-editor-close aria-label="Fechar painel">✕</button></div>` : ""}
         <section class="editor-panel ${isEditor ? "" : "editor-panel--section"} ${state.activeSection === "community" && !isEditor ? "editor-panel--community" : ""}">${panel()}</section>
         ${isEditor ? `<aside class="preview-panel" aria-label="Prévia da sua página">
           <div class="preview-wrap">
@@ -3406,6 +3416,22 @@ function linkkiPageModal({ title, message = '', value, danger = false, confirmLa
     });
   });
 
+  document.querySelectorAll('[data-mobile-editor-tool]').forEach(button => {
+    button.addEventListener('click', () => {
+      const selected = button.dataset.mobileEditorTool;
+      if (linkkiMobileEditorSheet && state.activeTab === selected) {
+        linkkiMobileEditorSheet = false;
+      } else {
+        state.activeTab = selected;
+        linkkiMobileEditorSheet = true;
+      }
+      render();
+      if (linkkiMobileEditorSheet && selected === 'analytics') void loadRealAnalytics();
+    });
+  });
+  document.querySelectorAll('[data-mobile-editor-close]').forEach(button => {
+    button.addEventListener('click', () => { linkkiMobileEditorSheet = false; render(); });
+  });
   document.querySelectorAll("[data-tab]").forEach((button) => {
     button.addEventListener("click", () => {
       state.activeTab = button.dataset.tab;
