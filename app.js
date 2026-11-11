@@ -317,82 +317,118 @@ function linkkiBindStickerEditor() {
   }, {signal});
   const preview = document.querySelector('.preview-screen');
   if (!preview) return;
-  preview.addEventListener('click', event => {
-    const remove = event.target.closest('[data-sticker-action="delete"]');
-    if (!remove) return;
-    event.preventDefault();
-    const element = remove.closest('[data-linkki-sticker]');
-    if (!element || !state.profile.stickers) return;
-    state.profile.stickers = linkkiNormalizeStickers(state.profile.stickers).filter(s => s.id !== element.dataset.linkkiSticker);
-    linkkiSelectedStickerId = null;
-    saveState();
-    syncLivePreview();
-  }, {signal});
-  preview.addEventListener('pointerdown', event => {
-    const stickerElement = event.target.closest('[data-linkki-sticker]');
-    if (!stickerElement) {
-      if (linkkiSelectedStickerId) { linkkiSelectedStickerId = null; linkkiRefreshStickerSelection(preview); }
-      return;
-    }
-    const id = stickerElement.dataset.linkkiSticker;
-    state.profile.stickers = linkkiNormalizeStickers(state.profile.stickers);
-    const sticker = state.profile.stickers.find(item => item.id === id);
-    if (!sticker) return;
-    event.preventDefault();
-    event.stopPropagation();
-    linkkiSelectedStickerId = id;
+  // Gestos isolados: Safari usa Touch Events; mouse/caneta usam Pointer Events.
+  // O listener fica no preview (estável durante atualizações de aparência).
+  let activeGesture = null;
+  const select = element => {
+    linkkiSelectedStickerId = element.dataset.linkkiSticker;
     linkkiRefreshStickerSelection(preview);
-    const action = event.target.closest('[data-sticker-action]')?.dataset.stickerAction || 'move';
+  };
+  const finish = () => {
+    if (!activeGesture) return;
+    const g = activeGesture;
+    activeGesture = null;
+    if (g.changed) {
+      saveState();
+      // Não recriar o DOM no meio de um gesto; sincronizar somente no fim.
+      syncLivePreview();
+    }
+  };
+  const begin = (target, x, y, kind, identifier) => {
+    const element = target.closest?.('[data-linkki-sticker]');
+    if (!element || !preview.contains(element)) return false;
+    const id = element.dataset.linkkiSticker;
+    state.profile.stickers = linkkiNormalizeStickers(state.profile.stickers);
+    const sticker = state.profile.stickers.find(s => s.id === id);
+    if (!sticker) return false;
+    select(element);
+    const action = target.closest('[data-sticker-action]')?.dataset.stickerAction || 'move';
     if (action === 'delete') {
-      state.profile.stickers = state.profile.stickers.filter(item => item.id !== id);
+      state.profile.stickers = state.profile.stickers.filter(s => s.id !== id);
       linkkiSelectedStickerId = null;
       saveState();
-      const counter = document.querySelector('.linkki-sticker-counter');
-      if (counter) counter.textContent = `${state.profile.stickers.length} na página`;
       syncLivePreview();
-      return;
+      return true;
     }
-    const canvas = preview.querySelector('.profile-canvas');
-    if (!canvas) return;
-    const layer = canvas.querySelector('.linkki-sticker-layer');
-    if (!layer) return;
+    const layer = element.closest('.linkki-sticker-layer');
+    if (!layer) return false;
     const rect = layer.getBoundingClientRect();
+    if (!rect.width || !rect.height) return false;
     const base = {...sticker};
-    const angle = (e) => Math.atan2(e.clientY - (rect.top + rect.height * base.y/100), e.clientX - (rect.left + rect.width * base.x/100)) * 180 / Math.PI;
-    const startRotation = angle(event);
-    const cx = rect.left + rect.width * base.x / 100;
-    const cy = rect.top + rect.height * base.y / 100;
-    const startDistance = Math.max(10, Math.hypot(event.clientX-cx, event.clientY-cy));
-    const pointerId = event.pointerId;
-    try { stickerElement.setPointerCapture(pointerId); } catch (_) {}
-    const gesture = new AbortController();
-    let changed = false;
-    const moved = e => {
-      if (e.pointerId !== pointerId) return;
-      changed = true;
-      if (action === 'move') {
-        sticker.x = Math.max(0, Math.min(100, base.x + (e.clientX - event.clientX) / rect.width * 100));
-        sticker.y = Math.max(0, Math.min(100, base.y + (e.clientY - event.clientY) / rect.height * 100));
-      } else if (action === 'resize') {
-        sticker.size = Math.max(8, Math.min(65, Math.round((base.size * Math.hypot(e.clientX-cx, e.clientY-cy) / startDistance) * 10) / 10));
-      } else if (action === 'rotate') {
-        sticker.rotation = Math.round(base.rotation + angle(e) - startRotation);
-      }
-      stickerElement.style.left = sticker.x + '%';
-      stickerElement.style.top = sticker.y + '%';
-      stickerElement.style.width = sticker.size + '%';
-      stickerElement.style.transform = `translate(-50%, -50%) rotate(${sticker.rotation}deg)`;
+    const cx = rect.left + rect.width * base.x/100;
+    const cy = rect.top + rect.height * base.y/100;
+    activeGesture = {
+      kind, identifier, element, sticker, action, base, rect, x, y, cx, cy,
+      distance: Math.max(10, Math.hypot(x-cx,y-cy)),
+      angle: Math.atan2(y-cy,x-cx)*180/Math.PI,
+      changed:false
     };
-    const end = e => {
-      if (e.pointerId !== pointerId) return;
-      gesture.abort();
-      try { if (stickerElement.hasPointerCapture(pointerId)) stickerElement.releasePointerCapture(pointerId); } catch (_) {}
-      if (changed) saveState();
-    };
-    window.addEventListener('pointermove', moved, {signal: gesture.signal});
-    window.addEventListener('pointerup', end, {signal: gesture.signal});
-    window.addEventListener('pointercancel', end, {signal: gesture.signal});
-  }, {signal});
+    return true;
+  };
+  const move = (x,y) => {
+    const g = activeGesture;
+    if (!g) return;
+    const {sticker,base,rect,element,action} = g;
+    if (Math.hypot(x-g.x,y-g.y) < 2 && !g.changed) return;
+    g.changed = true;
+    if (action === 'move') {
+      sticker.x = Math.max(0,Math.min(100,base.x+(x-g.x)/rect.width*100));
+      sticker.y = Math.max(0,Math.min(100,base.y+(y-g.y)/rect.height*100));
+    } else if (action === 'resize') {
+      sticker.size = Math.max(8,Math.min(65,Math.round(base.size*Math.hypot(x-g.cx,y-g.cy)/g.distance*10)/10));
+    } else if (action === 'rotate') {
+      sticker.rotation = Math.round(base.rotation+Math.atan2(y-g.cy,x-g.cx)*180/Math.PI-g.angle);
+    }
+    element.style.left = sticker.x+'%';
+    element.style.top = sticker.y+'%';
+    element.style.width = sticker.size+'%';
+    element.style.transform = `translate(-50%,-50%) rotate(${sticker.rotation}deg)`;
+  };
+  preview.addEventListener('touchstart', e => {
+    if (activeGesture || !e.changedTouches.length) return;
+    const t=e.changedTouches[0];
+    if (begin(e.target,t.clientX,t.clientY,'touch',t.identifier)) e.preventDefault();
+  },{signal,passive:false});
+  preview.addEventListener('touchmove',e=>{
+    if (!activeGesture || activeGesture.kind!=='touch') return;
+    const t=Array.from(e.changedTouches).find(t=>t.identifier===activeGesture.identifier);
+    if (!t) return;
+    e.preventDefault();
+    move(t.clientX,t.clientY);
+  },{signal,passive:false});
+  const endTouch=e=>{
+    if (!activeGesture || activeGesture.kind!=='touch') return;
+    if (Array.from(e.changedTouches).some(t=>t.identifier===activeGesture.identifier)) {
+      e.preventDefault();
+      finish();
+    }
+  };
+  preview.addEventListener('touchend',endTouch,{signal,passive:false});
+  preview.addEventListener('touchcancel',endTouch,{signal,passive:false});
+  preview.addEventListener('pointerdown',e=>{
+    if (e.pointerType==='touch') return; // Evita dois gestos no Safari.
+    if (begin(e.target,e.clientX,e.clientY,'pointer',e.pointerId)) {
+      e.preventDefault();
+      try { preview.setPointerCapture(e.pointerId); } catch (_) {}
+    }
+  },{signal});
+  preview.addEventListener('pointermove',e=>{
+    if (activeGesture?.kind==='pointer' && activeGesture.identifier===e.pointerId) move(e.clientX,e.clientY);
+  },{signal});
+  const endPointer=e=>{
+    if (activeGesture?.kind!=='pointer'||activeGesture.identifier!==e.pointerId) return;
+    finish();
+    try { if (preview.hasPointerCapture(e.pointerId)) preview.releasePointerCapture(e.pointerId); } catch (_) {}
+  };
+  preview.addEventListener('pointerup',endPointer,{signal});
+  preview.addEventListener('pointercancel',endPointer,{signal});
+  // Seleção apenas ao tocar fora; não interfere no início do arrasto.
+  preview.addEventListener('click',e=>{
+    if (e.target.closest('[data-linkki-sticker]')) return;
+    linkkiSelectedStickerId=null;
+    linkkiRefreshStickerSelection(preview);
+  },{signal});
+
 }
 
 function appearanceSnapshot(profile) {
