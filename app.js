@@ -317,6 +317,17 @@ function linkkiBindStickerEditor() {
   }, {signal});
   const preview = document.querySelector('.preview-screen');
   if (!preview) return;
+  preview.addEventListener('click', event => {
+    const remove = event.target.closest('[data-sticker-action="delete"]');
+    if (!remove) return;
+    event.preventDefault();
+    const element = remove.closest('[data-linkki-sticker]');
+    if (!element || !state.profile.stickers) return;
+    state.profile.stickers = linkkiNormalizeStickers(state.profile.stickers).filter(s => s.id !== element.dataset.linkkiSticker);
+    linkkiSelectedStickerId = null;
+    saveState();
+    syncLivePreview();
+  }, {signal});
   preview.addEventListener('pointerdown', event => {
     const stickerElement = event.target.closest('[data-linkki-sticker]');
     if (!stickerElement) {
@@ -324,7 +335,8 @@ function linkkiBindStickerEditor() {
       return;
     }
     const id = stickerElement.dataset.linkkiSticker;
-    const sticker = state.profile.stickers?.find(item => item.id === id);
+    state.profile.stickers = linkkiNormalizeStickers(state.profile.stickers);
+    const sticker = state.profile.stickers.find(item => item.id === id);
     if (!sticker) return;
     event.preventDefault();
     event.stopPropagation();
@@ -352,6 +364,7 @@ function linkkiBindStickerEditor() {
     const cy = rect.top + rect.height * base.y / 100;
     const startDistance = Math.max(10, Math.hypot(event.clientX-cx, event.clientY-cy));
     const pointerId = event.pointerId;
+    try { stickerElement.setPointerCapture(pointerId); } catch (_) {}
     const gesture = new AbortController();
     let changed = false;
     const moved = e => {
@@ -373,6 +386,7 @@ function linkkiBindStickerEditor() {
     const end = e => {
       if (e.pointerId !== pointerId) return;
       gesture.abort();
+      try { if (stickerElement.hasPointerCapture(pointerId)) stickerElement.releasePointerCapture(pointerId); } catch (_) {}
       if (changed) saveState();
     };
     window.addEventListener('pointermove', moved, {signal: gesture.signal});
