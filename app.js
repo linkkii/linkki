@@ -2459,6 +2459,9 @@ const linkkiMobileToolInfo = {
   analytics: ['Analytics','↗','analytics']
 };
 function linkkiPrepareMobileToolPanel() {
+  // Os filtros das ferramentas são exclusivos do editor mobile.
+  // No desktop, todas as seções de Aparência precisam permanecer visíveis.
+  if (!window.matchMedia('(max-width:820px)').matches) return;
   const workspace = document.querySelector('.workspace--mobile-editor');
   if (!workspace) return;
   const panel = workspace.querySelector(':scope > .editor-panel');

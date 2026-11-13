@@ -4398,3 +4398,9 @@ button.template-stat {
     user-select:none!important;
   }
 }
+
+/* O atributo hidden usado pelo painel mobile nunca deve esconder cards no desktop. */
+@media (min-width:821px) {
+  .workspace--mobile-editor > .editor-panel > .card[hidden] { display:block!important; }
+  .workspace--mobile-editor > .editor-panel > .panel-header[hidden] { display:block!important; }
+}
