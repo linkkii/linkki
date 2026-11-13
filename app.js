@@ -926,10 +926,9 @@ function syncLivePreview() {
   if (preview) {
     const next = document.createElement("div");
     next.innerHTML = publicProfileMarkup(undefined, true);
-    const currentCanvas = preview.firstElementChild;
-    const nextCanvas = next.firstElementChild;
-    if (currentCanvas && nextCanvas) patchPreviewNode(currentCanvas, nextCanvas);
-    else preview.replaceChildren(...Array.from(next.childNodes));
+    // Sincroniza todos os filhos: fontes personalizadas inserem um <style>
+    // antes do canvas. Atualizar só firstElementChild deixava a prévia congelada.
+    patchPreviewNode(preview, next);
   }
 
   const sidebarName = document.querySelector(".sidebar-profile strong");
