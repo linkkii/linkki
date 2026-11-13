@@ -947,7 +947,7 @@ a {
   cursor: pointer;
   font-size: 13px;
   font-weight: 800;
-  font-family: var(--title-font, Inter, ui-sans-serif, system-ui, sans-serif);
+  font-family: var(--body-font, Inter, ui-sans-serif, system-ui, sans-serif);
   transition: transform 150ms ease, box-shadow 150ms ease;
 }
 
@@ -2281,7 +2281,7 @@ a {
   background: var(--template-button);
   box-shadow: var(--template-shadow);
   color: var(--template-button-text);
-  font-family: var(--template-title-font);
+  font-family: var(--template-body-font);
   font-size: 9px;
   font-weight: 800;
 }
@@ -4404,3 +4404,7 @@ button.template-stat {
   .workspace--mobile-editor > .editor-panel > .card[hidden] { display:block!important; }
   .workspace--mobile-editor > .editor-panel > .panel-header[hidden] { display:block!important; }
 }
+
+/* Tipografia independente: apenas o nome usa a fonte de título. */
+.profile-canvas .public-handle, .profile-canvas .public-bio, .profile-canvas .link-button { font-family: var(--body-font, Inter, ui-sans-serif, system-ui, sans-serif); }
+.template-preview .template-mini-handle, .template-preview .template-mini-links span { font-family: var(--template-body-font, Inter, ui-sans-serif, system-ui, sans-serif); }

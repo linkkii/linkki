@@ -1711,7 +1711,7 @@ function appearancePanel() {
       <div class="card-title"><h2>Tipografia</h2></div>
       <p class="section-description">Escolha fontes diferentes para dar hierarquia à sua página.</p>
       <div class="font-picker-list">
-        ${fontPickerMarkup("titleFont", "Títulos principais", "Nome do perfil e títulos dos links")}
+        ${fontPickerMarkup("titleFont", "Títulos principais", "Somente o nome do perfil")}
         ${fontPickerMarkup("bodyFont", "Textos", "Bio, usuário e informações auxiliares")}
       </div>
       <input id="font-file-input" type="file" accept=".woff,.woff2,.ttf,.otf,font/woff,font/woff2,font/ttf,font/otf" hidden />
