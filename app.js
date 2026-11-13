@@ -924,11 +924,15 @@ function patchPreviewNode(current, next) {
 function syncLivePreview() {
   const preview = document.querySelector(".preview-screen");
   if (preview) {
-    const next = document.createElement("div");
-    next.innerHTML = publicProfileMarkup(undefined, true);
-    // Sincroniza todos os filhos: fontes personalizadas inserem um <style>
-    // antes do canvas. Atualizar só firstElementChild deixava a prévia congelada.
-    patchPreviewNode(preview, next);
+    // A aparência pode inserir/remover <style>, capas, avatares e adesivos.
+    // Atualizações posicionais do DOM misturam nós de estruturas diferentes.
+    // Reconstruir a prévia garante que cada controle reflita o estado atual.
+    const scrollTop = preview.scrollTop;
+    const scrollLeft = preview.scrollLeft;
+    const markup = publicProfileMarkup(undefined, true);
+    preview.innerHTML = markup;
+    preview.scrollTop = scrollTop;
+    preview.scrollLeft = scrollLeft;
   }
 
   const sidebarName = document.querySelector(".sidebar-profile strong");
